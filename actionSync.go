@@ -19,7 +19,7 @@ import (
 	"github.com/launchrctl/launchr/pkg/action"
 	"github.com/pterm/pterm"
 
-	"github.com/skilld-labs/plasmactl-bump/v2/pkg/sync"
+	"github.com/plasmash/plasmactl-bump/v2/pkg/sync"
 )
 
 var (

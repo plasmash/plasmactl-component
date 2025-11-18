@@ -1,4 +1,4 @@
-module github.com/skilld-labs/plasmactl-bump/v2
+module github.com/plasmash/plasmactl-bump/v2
 
 go 1.25.0
 

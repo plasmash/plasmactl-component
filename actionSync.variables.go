@@ -18,7 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/pterm/pterm"
 
-	"github.com/skilld-labs/plasmactl-bump/v2/pkg/sync"
+	"github.com/plasmash/plasmactl-bump/v2/pkg/sync"
 )
 
 func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {

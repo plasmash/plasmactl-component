@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/launchrctl/launchr/pkg/action"
-	"github.com/skilld-labs/plasmactl-bump/v2/pkg/repository"
-	"github.com/skilld-labs/plasmactl-bump/v2/pkg/sync"
+	"github.com/plasmash/plasmactl-bump/v2/pkg/repository"
+	"github.com/plasmash/plasmactl-bump/v2/pkg/sync"
 )
 
 var unversionedFiles = map[string]struct{}{

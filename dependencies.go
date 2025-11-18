@@ -6,7 +6,7 @@ import (
 
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
-	"github.com/skilld-labs/plasmactl-bump/v2/pkg/sync"
+	"github.com/plasmash/plasmactl-bump/v2/pkg/sync"
 )
 
 type dependenciesAction struct {

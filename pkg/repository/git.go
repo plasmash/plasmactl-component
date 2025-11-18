@@ -46,7 +46,7 @@ func NewBumper() (*Bumper, error) {
 	return &Bumper{
 		git:           r,
 		name:          Author,
-		mail:          "no-reply@skilld.cloud",
+		mail:          "noreply@plasma.sh",
 		commitMessage: BumpMessage,
 	}, nil
 }
