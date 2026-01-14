@@ -1,4 +1,4 @@
-module github.com/plasmash/plasmactl-bump/v2
+module github.com/plasmash/plasmactl-component
 
 go 1.25.0
 

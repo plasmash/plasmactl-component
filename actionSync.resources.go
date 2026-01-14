@@ -1,4 +1,4 @@
-package plasmactlbump
+package plasmactlcomponent
 
 import (
 	"context"

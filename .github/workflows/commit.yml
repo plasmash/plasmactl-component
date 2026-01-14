@@ -27,11 +27,11 @@ jobs:
           whoami
           make deps build
           ls -lah bin/launchr
-          mkdir -p .compose/build/platform/ .compose/packages/example/main
+          mkdir -p .plasma/package/compose/merged/platform/ .plasma/package/compose/packages/example/main
           echo -e '[local]\nlocalhost ansible_connection=local' > hosts
-          echo -e '---\n- name: Echo test on local host\n  hosts: local\n  gather_facts: false\n  connection: local\n  tasks:\n    - name: Run echo command\n      ansible.builtin.shell: echo "test"' > .compose/build/platform/platform.yaml
-          echo -e 'name: launchr\ndependencies:\n  - name: example\n    source:\n      type: git\n      ref: main\n      url: https://github.com/davidferlay/compose-example.git\n      strategy: null' > plasma-compose.yaml
-          ./bin/launchr bump --sync --vault-pass "xxx" --keyring-passphrase "xxx" -vvv
+          echo -e '---\n- name: Echo test on local host\n  hosts: local\n  gather_facts: false\n  connection: local\n  tasks:\n    - name: Run echo command\n      ansible.builtin.shell: echo "test"' > .plasma/package/compose/merged/platform/platform.yaml
+          echo -e 'name: launchr\ndependencies:\n  - name: example\n    source:\n      type: git\n      ref: main\n      url: https://github.com/davidferlay/compose-example.git\n      strategy: null' > compose.yaml
+          ./bin/launchr component:sync --vault-pass "xxx" --keyring-passphrase "xxx" -vvv
 
   commands-ok:
     name: Ensure main commands do not fail
@@ -68,7 +68,7 @@ jobs:
           git config --global user.email "citesting@example.com"
           git config --global user.name "CI testing"
           git commit -m "CI testing"
-          ./bin/launchr bump
+          ./bin/launchr component:bump
 
   go-linters:
     name: Run linters

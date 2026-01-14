@@ -22,7 +22,7 @@ const (
 // InventoryExcluded is list of excluded files and folders from inventory.
 var InventoryExcluded = []string{
 	".git",
-	".compose",
+	".plasma",
 	".plasmactl",
 	".gitlab-ci.yml",
 	"ansible_collections",

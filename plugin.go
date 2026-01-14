@@ -1,5 +1,5 @@
-// Package plasmactlbump implements a launchr plugin with bump functionality
-package plasmactlbump
+// Package plasmactlcomponent implements a launchr plugin with component functionality
+package plasmactlcomponent
 
 import (
 	"context"
@@ -14,6 +14,9 @@ import (
 
 //go:embed action.bump.yaml
 var actionBumpYaml []byte
+
+//go:embed action.sync.yaml
+var actionSyncYaml []byte
 
 //go:embed action.dependencies.yaml
 var actionDependenciesYaml []byte
@@ -44,16 +47,28 @@ func (p *Plugin) OnAppInit(app launchr.App) error {
 
 // DiscoverActions implements [launchr.ActionDiscoveryPlugin] interface.
 func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
-	ba := action.NewFromYAML("bump", actionBumpYaml)
+	ba := action.NewFromYAML("component:bump", actionBumpYaml)
 	ba.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		input := a.Input()
-		doSync := input.Opt("sync").(bool)
+		dryRun := input.Opt("dry-run").(bool)
+		last := input.Opt("last").(bool)
+
+		log, _, _, term := getLogger(a)
+
+		bump := bumpAction{last: last, dryRun: dryRun}
+		bump.SetLogger(log)
+		bump.SetTerm(term)
+		return bump.Execute()
+	}))
+
+	sa := action.NewFromYAML("component:sync", actionSyncYaml)
+	sa.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
+		input := a.Input()
 		dryRun := input.Opt("dry-run").(bool)
 		allowOverride := input.Opt("allow-override").(bool)
 		filterByResourceUsage := input.Opt("playbook-filter").(bool)
 		timeDepth := input.Opt("time-depth").(string)
 		vaultpass := input.Opt("vault-pass").(string)
-		last := input.Opt("last").(bool)
 
 		log, logLevel, streams, term := getLogger(a)
 		hideProgress := input.Opt("hide-progress").(bool)
@@ -61,20 +76,13 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			hideProgress = true
 		}
 
-		if !doSync {
-			bump := bumpAction{last: last, dryRun: dryRun}
-			bump.SetLogger(log)
-			bump.SetTerm(term)
-			return bump.Execute()
-		}
-
 		sync := syncAction{
 			keyring: p.k,
 			streams: streams,
 
 			domainDir:   ".",
-			buildDir:    ".compose/build",
-			packagesDir: ".compose/packages",
+			buildDir:    ".plasma/package/compose/merged",
+			packagesDir: ".plasma/package/compose/packages",
 
 			dryRun:                dryRun,
 			filterByResourceUsage: filterByResourceUsage,
@@ -86,15 +94,10 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 
 		sync.SetLogger(log)
 		sync.SetTerm(term)
-		err := sync.Execute()
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return sync.Execute()
 	}))
 
-	da := action.NewFromYAML("dependencies", actionDependenciesYaml)
+	da := action.NewFromYAML("component:depend", actionDependenciesYaml)
 	da.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
 
@@ -121,7 +124,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		return dependencies.run(target, source, !showPaths, showTree, depth)
 	}))
 
-	return []*action.Action{ba, da}, nil
+	return []*action.Action{ba, sa, da}, nil
 }
 
 func getLogger(a *action.Action) (*launchr.Logger, launchr.LogLevel, launchr.Streams, *launchr.Terminal) {
