@@ -1,44 +1,63 @@
-# plasmactl-bump
+# plasmactl-component
 
-A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning in Plasma platforms.
+A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning and dependencies in Plasma platforms.
 
 ## Overview
 
-`plasmactl-bump` automatically updates the version of platform components that were modified in the last commit. It tracks changes using git history and propagates version updates through the dependency tree.
+`plasmactl-component` automatically updates the version of platform components that were modified in the last commit. It tracks changes using git history and propagates version updates through the dependency tree.
 
 ## Features
 
 - **Automatic Versioning**: Updates component versions based on git commit history
 - **Dependency Propagation**: Cascades version updates to dependent components
+- **Dependency Management**: Query and manage component dependencies
 - **Multi-Repository Support**: Works across domain and package repositories
 - **Variable Tracking**: Monitors changes in configuration variables (`group_vars`, `vault.yaml`)
 - **Smart Filtering**: Excludes documentation files (README.md, README.svg)
 
-## Usage
+## Commands
 
-### Basic Bump
+### component:bump
 
 Update versions of components modified in the last commit:
 
 ```bash
-plasmactl bump
+plasmactl component:bump
 ```
 
-### Bump with Sync (Propagation)
+Options:
+- `--last`: Only consider changes from the last commit
+- `--allow-override`: Allow bump even with uncommitted changes
+
+### component:sync
 
 Propagate version changes to all dependent components:
 
 ```bash
-plasmactl bump --sync
+plasmactl component:sync
 ```
 
-**Important**: Always run `plasmactl compose` before `plasmactl bump --sync` to ensure accurate dependency resolution.
+**Important**: Always run `plasmactl package:compose` before `component:sync` to ensure accurate dependency resolution.
 
-### Options
+### component:depend
 
-- `--last`: Only consider changes from the last commit
-- `--sync`: Propagate versions to dependent resources
-- `--allow-override`: Allow propagation even with uncommitted changes
+Query and manage component dependencies:
+
+```bash
+# Query dependencies
+plasmactl component:depend cognition.skills.bar
+plasmactl component:depend cognition.skills.bar --up      # What depends on it
+plasmactl component:depend cognition.skills.bar --down    # What it depends on
+
+# Add dependency
+plasmactl component:depend cognition.skills.bar cognition.function.foo
+
+# Remove dependency (dash prefix)
+plasmactl component:depend cognition.skills.bar -cognition.function.foo
+
+# Replace dependency (slash separator)
+plasmactl component:depend cognition.skills.bar old.mrn/new.mrn
+```
 
 ## How It Works
 
@@ -50,7 +69,7 @@ plasmactl bump --sync
 4. Gets the short hash of the last commit
 5. Iterates through resources and updates their versions
 
-### Propagation Flow (`--sync`)
+### Sync Flow (Propagation)
 
 1. **Analyze build directory**: Identify resources and their dependencies
 2. **Build timeline**: Determine when each resource/variable was last modified
@@ -99,13 +118,13 @@ git add -A
 git commit -m "feat: update myservice"
 
 # 3. Bump versions
-plasmactl bump
+plasmactl component:bump
 
 # 4. Compose the platform
-plasmactl compose
+plasmactl package:compose
 
 # 5. Propagate versions to dependencies
-plasmactl bump --sync
+plasmactl component:sync
 ```
 
 ## Multi-Repository Workflow
@@ -116,12 +135,12 @@ When working with packages:
 # In package repository
 vim services/roles/myservice/tasks/main.yaml
 git commit -m "feat: update service"
-plasmactl bump
+plasmactl component:bump
 
 # In platform repository
 # Update plasma-compose.yaml to reference new package version
-plasmactl compose
-plasmactl bump --sync
+plasmactl package:compose
+plasmactl component:sync
 ```
 
 ## Variable Propagation
@@ -131,8 +150,8 @@ Changes to variables in `group_vars` or `vault.yaml` trigger propagation to all 
 ```bash
 vim group_vars/platform.interaction.observability/vars.yaml
 git commit -m "config: update variable"
-plasmactl compose
-plasmactl bump --sync  # Propagates variable change to all dependent resources
+plasmactl package:compose
+plasmactl component:sync  # Propagates variable change to all dependent resources
 ```
 
 ## Documentation
@@ -142,4 +161,4 @@ plasmactl bump --sync  # Propagates variable change to all dependent resources
 
 ## License
 
-Apache License 2.0
+[European Union Public License 1.2 (EUPL-1.2)](LICENSE)
