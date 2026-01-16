@@ -1,7 +1,7 @@
 runtime: plugin
 action:
-  title: "Component: Depend"
-  description: "Shows dependencies and dependent resources of selected resource"
+  title: Depend
+  description: "Show dependencies and dependents of a component"
   alias:
     - depend
   arguments:

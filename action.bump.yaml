@@ -1,6 +1,6 @@
 runtime: plugin
 action:
-  title: "Component: Bump"
+  title: Bump
   description: "Bump versions of updated components"
   options:
     - name: dry-run

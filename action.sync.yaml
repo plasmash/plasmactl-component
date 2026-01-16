@@ -1,6 +1,6 @@
 runtime: plugin
 action:
-  title: "Component: Sync"
+  title: Sync
   description: "Propagate versions of updated components to their dependencies"
   options:
     - name: dry-run
