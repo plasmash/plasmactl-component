@@ -1,4 +1,4 @@
-package plasmactlcomponent
+package action
 
 import (
 	"path/filepath"
@@ -14,16 +14,16 @@ var unversionedFiles = map[string]struct{}{
 	"README.svg": {},
 }
 
-// bumpAction is an action representing versions update of committed resources.
-type bumpAction struct {
+// Bump is an action representing versions update of committed resources.
+type Bump struct {
 	action.WithLogger
 	action.WithTerm
 
-	last   bool
-	dryRun bool
+	Last   bool
+	DryRun bool
 }
 
-func (b *bumpAction) printMemo() {
+func (b *Bump) printMemo() {
 	b.Log().Info("List of non-versioned files:")
 	for k := range unversionedFiles {
 		b.Log().Info(k)
@@ -31,7 +31,7 @@ func (b *bumpAction) printMemo() {
 }
 
 // Execute the bump action to update committed resources.
-func (b *bumpAction) Execute() error {
+func (b *Bump) Execute() error {
 	b.Term().Info().Println("Bumping updated resources...")
 	b.printMemo()
 
@@ -45,7 +45,7 @@ func (b *bumpAction) Execute() error {
 		return nil
 	}
 
-	commits, err := bumper.GetCommits(b.last)
+	commits, err := bumper.GetCommits(b.Last)
 	if err != nil {
 		return err
 	}
@@ -62,14 +62,14 @@ func (b *bumpAction) Execute() error {
 		return err
 	}
 
-	if b.dryRun {
+	if b.DryRun {
 		return nil
 	}
 
 	return bumper.Commit()
 }
 
-func (b *bumpAction) getResource(path string) *sync.Resource {
+func (b *Bump) getResource(path string) *sync.Resource {
 	if !isVersionableFile(path) {
 		return nil
 	}
@@ -93,7 +93,7 @@ func (b *bumpAction) getResource(path string) *sync.Resource {
 	return resource
 }
 
-func (b *bumpAction) collectResources(commits []*repository.Commit) map[string]map[string]*sync.Resource {
+func (b *Bump) collectResources(commits []*repository.Commit) map[string]map[string]*sync.Resource {
 	uniqueVersion := map[string]string{}
 
 	resources := make(map[string]map[string]*sync.Resource)
@@ -122,7 +122,7 @@ func (b *bumpAction) collectResources(commits []*repository.Commit) map[string]m
 	return resources
 }
 
-func (b *bumpAction) updateResources(hashResourcesMap map[string]map[string]*sync.Resource) error {
+func (b *Bump) updateResources(hashResourcesMap map[string]map[string]*sync.Resource) error {
 	if len(hashResourcesMap) == 0 {
 		return nil
 	}
@@ -139,7 +139,7 @@ func (b *bumpAction) updateResources(hashResourcesMap map[string]map[string]*syn
 			}
 
 			b.Term().Printfln("- %s from %s to %s", mrn, currentVersion, version)
-			if b.dryRun {
+			if b.DryRun {
 				continue
 			}
 

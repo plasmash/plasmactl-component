@@ -1,19 +1,10 @@
 # plasmactl-component
 
-A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning and dependencies in Plasma platforms.
+A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning, dependencies, and chassis attachments in Plasma platforms.
 
 ## Overview
 
-`plasmactl-component` automatically updates the version of platform components that were modified in the last commit. It tracks changes using git history and propagates version updates through the dependency tree.
-
-## Features
-
-- **Automatic Versioning**: Updates component versions based on git commit history
-- **Dependency Propagation**: Cascades version updates to dependent components
-- **Dependency Management**: Query and manage component dependencies
-- **Multi-Repository Support**: Works across domain and package repositories
-- **Variable Tracking**: Monitors changes in configuration variables (`group_vars`, `vault.yaml`)
-- **Smart Filtering**: Excludes documentation files (README.md, README.svg)
+`plasmactl-component` provides tools for managing Plasma platform components including automatic versioning, dependency management, and chassis attachments.
 
 ## Commands
 
@@ -27,7 +18,7 @@ plasmactl component:bump
 
 Options:
 - `--last`: Only consider changes from the last commit
-- `--allow-override`: Allow bump even with uncommitted changes
+- `--dry-run`: Preview changes without applying
 
 ### component:sync
 
@@ -37,75 +28,91 @@ Propagate version changes to all dependent components:
 plasmactl component:sync
 ```
 
-**Important**: Always run `plasmactl package:compose` before `component:sync` to ensure accurate dependency resolution.
+Options:
+- `--dry-run`: Preview changes without applying
+- `--allow-override`: Allow sync with uncommitted changes
+- `--playbook-filter`: Filter by playbook resource usage
+- `--time-depth`: Time depth for change detection
 
 ### component:depend
 
-Query and manage component dependencies:
+Query and manage component dependencies using kubectl-style operations:
 
 ```bash
-# Query dependencies
-plasmactl component:depend cognition.skills.bar
-plasmactl component:depend cognition.skills.bar --up      # What depends on it
-plasmactl component:depend cognition.skills.bar --down    # What it depends on
+# Show dependencies (no operations = show mode)
+plasmactl component:depend cognition.skills.analyzer
+plasmactl component:depend cognition.skills.analyzer --tree
+plasmactl component:depend cognition.skills.analyzer --path
 
-# Add dependency
-plasmactl component:depend cognition.skills.bar cognition.function.foo
+# Add dependencies
+plasmactl component:depend cognition.skills.analyzer cognition.functions.nlp
+plasmactl component:depend cognition.skills.analyzer dep1 dep2 dep3
 
-# Remove dependency (dash prefix)
-plasmactl component:depend cognition.skills.bar -cognition.function.foo
+# Remove dependency (trailing dash)
+plasmactl component:depend cognition.skills.analyzer cognition.functions.old-
 
 # Replace dependency (slash separator)
-plasmactl component:depend cognition.skills.bar old.mrn/new.mrn
+plasmactl component:depend cognition.skills.analyzer old.mrn/new.mrn
+
+# Combined operations
+plasmactl component:depend cognition.skills.analyzer newdep olddep- v1/v2
 ```
 
-## How It Works
+Options:
+- `-s, --source`: Resources source directory (default: `.plasma/package/compose/merged`)
+- `-p, --path`: Show paths instead of MRNs
+- `-t, --tree`: Show dependencies in tree-like output
+- `-d, --depth`: Limit recursion lookup depth (default: 99)
 
-### Bump Flow
+### component:attach
 
-1. Opens the git repository
-2. Checks if the latest commit is not already a bump commit
-3. Collects changed files (new, updated, deleted) until the previous bump commit
-4. Gets the short hash of the last commit
-5. Iterates through resources and updates their versions
+Attach a component to a chassis section:
 
-### Sync Flow (Propagation)
-
-1. **Analyze build directory**: Identify resources and their dependencies
-2. **Build timeline**: Determine when each resource/variable was last modified
-3. **Create propagation map**: Map version updates chronologically
-4. **Update resources**: Apply propagated versions to dependent components
-
-## Component Versioning
-
-Versions are git commit hashes stored in `meta/plasma.yaml`:
-
-```yaml
-version: abc123def
+```bash
+plasmactl component:attach interaction.applications.dashboards platform.interaction.observability
 ```
 
-After propagation, dependent resources get compound versions:
+Options:
+- `-s, --source`: Source directory
 
-```yaml
-version: original_version-propagated_version
+### component:detach
+
+Detach a component from a chassis section:
+
+```bash
+plasmactl component:detach interaction.applications.dashboards platform.interaction.observability
 ```
 
-## Resource Criteria
+Options:
+- `-s, --source`: Source directory
 
-Resources must:
-- Have a `meta/plasma.yaml` file
-- Match path pattern: `%platform/%kind/roles/%name/`
+### component:configure
 
-Supported component kinds:
-- `applications`
-- `services`
-- `softwares`
-- `executors`
-- `flows`
-- `skills`
-- `functions`
-- `libraries`
-- `entities`
+Configure component variables:
+
+```bash
+# List all configuration
+plasmactl component:configure --list
+
+# Get a specific value
+plasmactl component:configure mykey --get
+
+# Set a value
+plasmactl component:configure mykey myvalue
+
+# Validate configuration
+plasmactl component:configure --validate
+```
+
+Options:
+- `--get`: Get value mode
+- `--list`: List all configuration
+- `--validate`: Validate configuration
+- `--generate`: Generate configuration
+- `--at`: Target location
+- `--vault`: Use vault encryption
+- `--format`: Output format
+- `--strict`: Strict validation mode
 
 ## Workflow Example
 
@@ -114,8 +121,7 @@ Supported component kinds:
 vim platform/services/roles/myservice/tasks/main.yaml
 
 # 2. Commit changes
-git add -A
-git commit -m "feat: update myservice"
+git add -A && git commit -m "feat: update myservice"
 
 # 3. Bump versions
 plasmactl component:bump
@@ -125,33 +131,9 @@ plasmactl package:compose
 
 # 5. Propagate versions to dependencies
 plasmactl component:sync
-```
 
-## Multi-Repository Workflow
-
-When working with packages:
-
-```bash
-# In package repository
-vim services/roles/myservice/tasks/main.yaml
-git commit -m "feat: update service"
-plasmactl component:bump
-
-# In platform repository
-# Update plasma-compose.yaml to reference new package version
-plasmactl package:compose
-plasmactl component:sync
-```
-
-## Variable Propagation
-
-Changes to variables in `group_vars` or `vault.yaml` trigger propagation to all dependent resources, even without resource bumps:
-
-```bash
-vim group_vars/platform.interaction.observability/vars.yaml
-git commit -m "config: update variable"
-plasmactl package:compose
-plasmactl component:sync  # Propagates variable change to all dependent resources
+# 6. Manage dependencies
+plasmactl component:depend mycomponent newdep olddep-
 ```
 
 ## Documentation

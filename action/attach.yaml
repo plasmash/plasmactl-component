@@ -1,0 +1,20 @@
+runtime: plugin
+action:
+  title: Attach
+  description: "Attach a component to a chassis section"
+  arguments:
+    - name: component
+      title: Component
+      description: Component MRN to attach (e.g., interaction.applications.dashboards)
+      required: true
+    - name: chassis
+      title: Chassis
+      description: Chassis section to attach to (e.g., platform.interaction.interop)
+      required: true
+  options:
+    - name: source
+      shorthand: s
+      title: Source
+      description: Source directory containing layer definitions
+      type: string
+      default: "."

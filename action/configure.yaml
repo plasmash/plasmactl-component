@@ -1,0 +1,63 @@
+runtime: plugin
+action:
+  title: Configure
+  description: "Configure component settings and chassis overrides"
+  arguments:
+    - name: key
+      title: Key
+      description: Configuration key (e.g., auth_kratos_db_host)
+      required: false
+    - name: value
+      title: Value
+      description: Value to set (omit for get operations)
+      required: false
+  options:
+    - name: get
+      shorthand: g
+      title: Get
+      description: Get the value of a key
+      type: bool
+      default: false
+    - name: list
+      shorthand: l
+      title: List
+      description: List all configuration values
+      type: bool
+      default: false
+    - name: validate
+      title: Validate
+      description: Validate configuration against component schemas
+      type: bool
+      default: false
+    - name: generate
+      title: Generate
+      description: Generate/rotate a secret value
+      type: bool
+      default: false
+    - name: at
+      shorthand: a
+      title: At
+      description: "Chassis section for override scope (e.g., platform.foundation.cluster). Without --at, operates on component defaults."
+      type: string
+    - name: vault
+      shorthand: v
+      title: Vault
+      description: Target vault (secrets) instead of vars
+      type: bool
+      default: false
+    - name: format
+      shorthand: o
+      title: Output Format
+      description: Output format for --list (table, json, yaml)
+      type: string
+      default: "table"
+    - name: strict
+      title: Strict
+      description: Fail on warnings during --validate
+      type: bool
+      default: false
+    - name: yes-i-am-sure
+      title: Yes I Am Sure
+      description: Skip confirmation for --generate (secret rotation)
+      type: bool
+      default: false

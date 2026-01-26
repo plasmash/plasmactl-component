@@ -3,23 +3,18 @@ package plasmactlcomponent
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"fmt"
 	"os"
 
 	"github.com/launchrctl/keyring"
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
+	caction "github.com/plasmash/plasmactl-component/action"
 )
 
-//go:embed action.bump.yaml
-var actionBumpYaml []byte
-
-//go:embed action.sync.yaml
-var actionSyncYaml []byte
-
-//go:embed action.dependencies.yaml
-var actionDependenciesYaml []byte
+//go:embed action/*.yaml
+var actionYamlFS embed.FS
 
 func init() {
 	launchr.RegisterPlugin(&Plugin{})
@@ -47,6 +42,8 @@ func (p *Plugin) OnAppInit(app launchr.App) error {
 
 // DiscoverActions implements [launchr.ActionDiscoveryPlugin] interface.
 func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
+	// component:bump action
+	actionBumpYaml, _ := actionYamlFS.ReadFile("action/bump.yaml")
 	ba := action.NewFromYAML("component:bump", actionBumpYaml)
 	ba.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		input := a.Input()
@@ -55,12 +52,14 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 
 		log, _, _, term := getLogger(a)
 
-		bump := bumpAction{last: last, dryRun: dryRun}
+		bump := caction.Bump{Last: last, DryRun: dryRun}
 		bump.SetLogger(log)
 		bump.SetTerm(term)
 		return bump.Execute()
 	}))
 
+	// component:sync action
+	actionSyncYaml, _ := actionYamlFS.ReadFile("action/sync.yaml")
 	sa := action.NewFromYAML("component:sync", actionSyncYaml)
 	sa.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		input := a.Input()
@@ -76,20 +75,20 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			hideProgress = true
 		}
 
-		sync := syncAction{
-			keyring: p.k,
-			streams: streams,
+		sync := caction.Sync{
+			Keyring: p.k,
+			Streams: streams,
 
-			domainDir:   ".",
-			buildDir:    ".plasma/package/compose/merged",
-			packagesDir: ".plasma/package/compose/packages",
+			DomainDir:   ".",
+			BuildDir:    ".plasma/package/compose/merged",
+			PackagesDir: ".plasma/package/compose/packages",
 
-			dryRun:                dryRun,
-			filterByResourceUsage: filterByResourceUsage,
-			timeDepth:             timeDepth,
-			allowOverride:         allowOverride,
-			vaultPass:             vaultpass,
-			showProgress:          !hideProgress,
+			DryRun:                dryRun,
+			FilterByResourceUsage: filterByResourceUsage,
+			TimeDepth:             timeDepth,
+			AllowOverride:         allowOverride,
+			VaultPass:             vaultpass,
+			ShowProgress:          !hideProgress,
 		}
 
 		sync.SetLogger(log)
@@ -97,20 +96,27 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		return sync.Execute()
 	}))
 
-	da := action.NewFromYAML("component:depend", actionDependenciesYaml)
+	// component:depend action
+	actionDependYaml, _ := actionYamlFS.ReadFile("action/depend.yaml")
+	da := action.NewFromYAML("component:depend", actionDependYaml)
 	da.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
 
 		input := a.Input()
 		source := input.Opt("source").(string)
-		if _, err := os.Stat(source); os.IsNotExist(err) {
-			term.Warning().Printfln("%s doesn't exist, fallback to current dir", source)
-			source = "."
-		} else {
-			term.Info().Printfln("Selected source is %s", source)
+		operations := action.InputArgSlice[string](input, "operations")
+
+		// Only validate source for show mode (no operations)
+		if len(operations) == 0 {
+			if _, err := os.Stat(source); os.IsNotExist(err) {
+				term.Warning().Printfln("%s doesn't exist, fallback to current dir", source)
+				source = "."
+			} else {
+				term.Info().Printfln("Selected source is %s", source)
+			}
 		}
 
-		showPaths := input.Opt("mrn").(bool)
+		showPaths := input.Opt("path").(bool)
 		showTree := input.Opt("tree").(bool)
 		depth := int8(input.Opt("depth").(int)) //nolint:gosec
 		if depth == 0 {
@@ -118,13 +124,92 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		}
 
 		target := input.Arg("target").(string)
-		dependencies := &dependenciesAction{}
-		dependencies.SetLogger(log)
-		dependencies.SetTerm(term)
-		return dependencies.run(target, source, !showPaths, showTree, depth)
+		depend := &caction.Depend{
+			Target:     target,
+			Operations: operations,
+			Source:     source,
+			Path:       showPaths,
+			Tree:       showTree,
+			Depth:      depth,
+		}
+		depend.SetLogger(log)
+		depend.SetTerm(term)
+		return depend.Execute()
 	}))
 
-	return []*action.Action{ba, sa, da}, nil
+	// component:configure action (unified)
+	actionConfigureYaml, _ := actionYamlFS.ReadFile("action/configure.yaml")
+	ca := action.NewFromYAML("component:configure", actionConfigureYaml)
+	ca.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		// Get arguments (may be nil)
+		key := ""
+		if input.Arg("key") != nil {
+			key = input.Arg("key").(string)
+		}
+		value := ""
+		if input.Arg("value") != nil {
+			value = input.Arg("value").(string)
+		}
+
+		configure := &caction.Configure{
+			Key:   key,
+			Value: value,
+
+			Get:      input.Opt("get").(bool),
+			List:     input.Opt("list").(bool),
+			Validate: input.Opt("validate").(bool),
+			Generate: input.Opt("generate").(bool),
+
+			At: input.Opt("at").(string),
+
+			Vault:      input.Opt("vault").(bool),
+			Format:     input.Opt("format").(string),
+			Strict:     input.Opt("strict").(bool),
+			YesIAmSure: input.Opt("yes-i-am-sure").(bool),
+		}
+		configure.SetLogger(log)
+		configure.SetTerm(term)
+		return configure.Execute()
+	}))
+
+	// component:attach action
+	actionAttachYaml, _ := actionYamlFS.ReadFile("action/attach.yaml")
+	aa := action.NewFromYAML("component:attach", actionAttachYaml)
+	aa.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		attach := &caction.Attach{
+			Component: input.Arg("component").(string),
+			Chassis:   input.Arg("chassis").(string),
+			Source:    input.Opt("source").(string),
+		}
+		attach.SetLogger(log)
+		attach.SetTerm(term)
+		return attach.Execute()
+	}))
+
+	// component:detach action
+	actionDetachYaml, _ := actionYamlFS.ReadFile("action/detach.yaml")
+	dta := action.NewFromYAML("component:detach", actionDetachYaml)
+	dta.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		detach := &caction.Detach{
+			Component: input.Arg("component").(string),
+			Chassis:   input.Arg("chassis").(string),
+			Source:    input.Opt("source").(string),
+		}
+		detach.SetLogger(log)
+		detach.SetTerm(term)
+		return detach.Execute()
+	}))
+
+	return []*action.Action{ba, sa, da, ca, aa, dta}, nil
 }
 
 func getLogger(a *action.Action) (*launchr.Logger, launchr.LogLevel, launchr.Streams, *launchr.Terminal) {

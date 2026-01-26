@@ -1,0 +1,54 @@
+runtime: plugin
+action:
+  title: Depend
+  description: |
+    Manage component dependencies (kubectl-style).
+
+    Usage patterns:
+      component:depend TARGET                    # Show dependencies
+      component:depend TARGET DEP...             # Add dependencies
+      component:depend TARGET DEP-               # Remove dependency (trailing dash)
+      component:depend TARGET OLD/NEW            # Replace dependency
+
+    Examples:
+      component:depend cognition.skills.analyzer
+      component:depend cognition.skills.analyzer cognition.functions.nlp
+      component:depend cognition.skills.analyzer cognition.functions.nlp cognition.functions.tokenizer
+      component:depend cognition.skills.analyzer cognition.functions.old-
+      component:depend cognition.skills.analyzer cognition.functions.v1/cognition.functions.v2
+      component:depend cognition.skills.analyzer newdep olddep- v1/v2
+  arguments:
+    - name: target
+      title: Target
+      description: Target resource (path or MRN)
+      required: true
+    - name: operations
+      title: Operations
+      description: "Dependency operations: DEP (add), DEP- (remove), OLD/NEW (replace)"
+      type: "[]string"
+      required: false
+  options:
+    - name: source
+      shorthand: s
+      title: Source
+      description: Resources source directory (for show mode)
+      type: string
+      default: ".plasma/package/compose/merged"
+    - name: path
+      shorthand: p
+      title: Path
+      description: Show paths instead of MRNs
+      type: bool
+      default: false
+    - name: tree
+      shorthand: t
+      title: Tree
+      description: Show dependencies in tree-like output
+      type: bool
+      default: false
+    - name: depth
+      shorthand: d
+      title: Depth
+      description: Limit recursion lookup depth
+      type: integer
+      default: 99

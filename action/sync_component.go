@@ -1,4 +1,4 @@
-package plasmactlcomponent
+package action
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type CommitsGroup struct {
 	date   time.Time
 }
 
-func (s *syncAction) populateTimelineResources(resources map[string]*sync.OrderedMap[*sync.Resource], packagePathMap map[string]string) error {
+func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*sync.Resource], packagePathMap map[string]string) error {
 	var wg async.WaitGroup
 	var mx async.Mutex
 
@@ -45,7 +45,7 @@ func (s *syncAction) populateTimelineResources(resources map[string]*sync.Ordere
 	maxWorkers := min(runtime.NumCPU(), len(packagePathMap))
 	workChan := make(chan map[string]any, len(packagePathMap))
 
-	multi := sync.NewMultiPrinter(s.streams.Out())
+	multi := sync.NewMultiPrinter(s.Streams.Out())
 	multi.SetWriter(s.Term())
 
 	for i := 0; i < maxWorkers; i++ {
@@ -87,7 +87,7 @@ func (s *syncAction) populateTimelineResources(resources map[string]*sync.Ordere
 
 		var p *pterm.ProgressbarPrinter
 		var err error
-		if s.showProgress {
+		if s.ShowProgress {
 			p = pterm.DefaultProgressbar.WithTotal(resources[name].Len()).WithWriter(multi.NewWriter())
 			p, err = p.Start(fmt.Sprintf("Collecting resources from %s", name))
 			if err != nil {
@@ -99,7 +99,7 @@ func (s *syncAction) populateTimelineResources(resources map[string]*sync.Ordere
 	}
 	close(workChan)
 	go func() {
-		if s.showProgress {
+		if s.ShowProgress {
 			_, err := multi.Start()
 			if err != nil {
 				errorChan <- fmt.Errorf("error starting multi progress bar: %w", err)
@@ -117,7 +117,7 @@ func (s *syncAction) populateTimelineResources(resources map[string]*sync.Ordere
 	}
 
 	// Sleep to re-render progress bar. Needed to achieve latest state.
-	if s.showProgress {
+	if s.ShowProgress {
 		time.Sleep(multi.UpdateDelay)
 		_, _ = multi.Stop()
 	}
@@ -223,13 +223,13 @@ func collectResourcesCommits(r *git.Repository, beforeDate string) (*sync.Ordere
 	return groups, hashes, nil
 }
 
-func (s *syncAction) findResourcesChangeTime(ctx context.Context, namespaceResources *sync.OrderedMap[*sync.Resource], gitPath string, mx *async.Mutex, p *pterm.ProgressbarPrinter) error {
+func (s *Sync) findResourcesChangeTime(ctx context.Context, namespaceResources *sync.OrderedMap[*sync.Resource], gitPath string, mx *async.Mutex, p *pterm.ProgressbarPrinter) error {
 	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
-	groups, commitsMap, err := collectResourcesCommits(repo, s.timeDepth)
+	groups, commitsMap, err := collectResourcesCommits(repo, s.TimeDepth)
 	if err != nil {
 		return fmt.Errorf("collect resources commits > %w", err)
 	}
@@ -295,13 +295,13 @@ func (s *syncAction) findResourcesChangeTime(ctx context.Context, namespaceResou
 	return nil
 }
 
-func (s *syncAction) processResource(resource *sync.Resource, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, _ *git.Repository, gitPath string, mx *async.Mutex) error {
+func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, _ *git.Repository, gitPath string, mx *async.Mutex) error {
 	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
-	buildResource := sync.NewResource(resource.GetName(), s.buildDir)
+	buildResource := sync.NewResource(resource.GetName(), s.BuildDir)
 	currentVersion, debug, err := buildResource.GetVersion()
 	for _, d := range debug {
 		s.Log().Debug("error", "message", d)
@@ -349,7 +349,7 @@ func (s *syncAction) processResource(resource *sync.Resource, commitsGroups *syn
 	overridden := false
 	if currentVersion != headVersion {
 		msg := fmt.Sprintf("Version of `%s` doesn't match HEAD commit", resource.GetName())
-		if !s.allowOverride {
+		if !s.AllowOverride {
 			return errors.New(msg)
 		}
 
@@ -423,7 +423,7 @@ func (s *syncAction) processResource(resource *sync.Resource, commitsGroups *syn
 	return nil
 }
 
-func (s *syncAction) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	keys := commitsGroups.Keys()
 	for i := commitsGroups.Len() - 1; i >= 0; i-- {
 		group, _ := commitsGroups.Get(keys[i])
@@ -505,7 +505,7 @@ func (s *syncAction) processAllSections(commitsGroups *sync.OrderedMap[*CommitsG
 	return nil, nil
 }
 
-func (s *syncAction) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	keys := commitsGroups.Keys()
 	for i := commitsGroups.Len() - 1; i >= 0; i-- {
 		group, _ := commitsGroups.Get(keys[i])
@@ -583,7 +583,7 @@ func (s *syncAction) processUnknownSection(commitsGroups *sync.OrderedMap[*Commi
 	return nil, nil
 }
 
-func (s *syncAction) processBumpSection(group *CommitsGroup, resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	if group.name == headGroupName || len(group.items) == 0 {
 		// Something wrong with process in this case. It's not possible to have version from head commits group.
 		// Either someone can predict future or git history was manipulated. Send to manual search in this case.

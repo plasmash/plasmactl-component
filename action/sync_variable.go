@@ -1,4 +1,4 @@
-package plasmactlcomponent
+package action
 
 import (
 	"context"
@@ -21,8 +21,8 @@ import (
 	"github.com/plasmash/plasmactl-component/pkg/sync"
 )
 
-func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {
-	if s.filterByResourceUsage {
+func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
+	if s.FilterByResourceUsage {
 		// Quick return in case of empty usage pool.
 		usedResources := buildInv.GetUsedResources()
 		if len(usedResources) == 0 {
@@ -30,7 +30,7 @@ func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {
 		}
 	}
 
-	filesCrawler := sync.NewFilesCrawler(s.domainDir)
+	filesCrawler := sync.NewFilesCrawler(s.DomainDir)
 	groupedFiles, err := filesCrawler.FindVarsFiles("")
 	if err != nil {
 		return fmt.Errorf("can't get vars files > %w", err)
@@ -52,7 +52,7 @@ func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {
 	errorChan := make(chan error, 1)
 
 	var p *pterm.ProgressbarPrinter
-	if s.showProgress {
+	if s.ShowProgress {
 		p, _ = pterm.DefaultProgressbar.WithWriter(s.Term()).WithTotal(len(varsFiles)).WithTitle("Processing variables files").Start()
 	}
 
@@ -66,7 +66,7 @@ func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {
 					if !ok {
 						return
 					}
-					if err = s.findVariableUpdateTime(varsFile, buildInv, s.domainDir, &mx); err != nil {
+					if err = s.findVariableUpdateTime(varsFile, buildInv, s.DomainDir, &mx); err != nil {
 						if p != nil {
 							_, _ = p.Stop()
 						}
@@ -109,7 +109,7 @@ func (s *syncAction) populateTimelineVars(buildInv *sync.Inventory) error {
 	return nil
 }
 
-func (s *syncAction) findVariableUpdateTime(varsFile string, inv *sync.Inventory, gitPath string, mx *async.Mutex) error {
+func (s *Sync) findVariableUpdateTime(varsFile string, inv *sync.Inventory, gitPath string, mx *async.Mutex) error {
 	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
@@ -126,7 +126,7 @@ func (s *syncAction) findVariableUpdateTime(varsFile string, inv *sync.Inventory
 	variablesMap := sync.NewOrderedMap[*sync.Variable]()
 	isVault := sync.IsVaultFile(varsFile)
 
-	varsYaml, debug, err = sync.LoadVariablesFile(filepath.Join(s.buildDir, varsFile), s.vaultPass, isVault)
+	varsYaml, debug, err = sync.LoadVariablesFile(filepath.Join(s.BuildDir, varsFile), s.VaultPass, isVault)
 	for _, d := range debug {
 		s.Log().Debug(d)
 	}
@@ -136,7 +136,7 @@ func (s *syncAction) findVariableUpdateTime(varsFile string, inv *sync.Inventory
 
 	for k, value := range varsYaml {
 		v := sync.NewVariable(varsFile, k, hashString(fmt.Sprint(value)), isVault)
-		isUsed := inv.IsUsedVariable(s.filterByResourceUsage, v.GetName(), v.GetPlatform())
+		isUsed := inv.IsUsedVariable(s.FilterByResourceUsage, v.GetName(), v.GetPlatform())
 		if !isUsed {
 			// launchr.Term().Warning().Printfln("Unused variable %s - %s", v.GetName(), v.GetPath())
 			continue
@@ -198,7 +198,7 @@ func (s *syncAction) findVariableUpdateTime(varsFile string, inv *sync.Inventory
 			danglingCommit = nil
 		}
 
-		varFile, debug, errIt := loadVariablesFileFromBytes(file, varsFile, s.vaultPass, isVault)
+		varFile, debug, errIt := loadVariablesFileFromBytes(file, varsFile, s.VaultPass, isVault)
 		for _, d := range debug {
 			s.Log().Debug(d)
 		}
@@ -289,7 +289,7 @@ func (s *syncAction) findVariableUpdateTime(varsFile string, inv *sync.Inventory
 
 		if hm.author == buildHackAuthor {
 			msg := fmt.Sprintf("Value of `%s` doesn't match HEAD commit", n)
-			if !s.allowOverride {
+			if !s.AllowOverride {
 				return errors.New(msg)
 			}
 
