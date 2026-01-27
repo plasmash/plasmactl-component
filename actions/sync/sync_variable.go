@@ -1,4 +1,4 @@
-package action
+package sync
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/pterm/pterm"
 
-	"github.com/plasmash/plasmactl-component/pkg/sync"
+	"github.com/plasmash/plasmactl-component/internal/sync"
 )
 
 func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {

@@ -1,4 +1,4 @@
-package action
+package sync
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/pterm/pterm"
 
-	"github.com/plasmash/plasmactl-component/pkg/repository"
-	"github.com/plasmash/plasmactl-component/pkg/sync"
+	"github.com/plasmash/plasmactl-component/internal/repository"
+	"github.com/plasmash/plasmactl-component/internal/sync"
 )
 
 var errRunBruteProcess = fmt.Errorf("run brute")

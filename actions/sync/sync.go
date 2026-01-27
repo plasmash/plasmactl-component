@@ -1,4 +1,4 @@
-package action
+package sync
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ import (
 	"github.com/launchrctl/launchr/pkg/action"
 	"github.com/pterm/pterm"
 
-	"github.com/plasmash/plasmactl-component/pkg/sync"
+	"github.com/plasmash/plasmactl-component/internal/sync"
 )
 
 var (

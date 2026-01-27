@@ -1,4 +1,4 @@
-package action
+package depend
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
-	"github.com/plasmash/plasmactl-component/pkg/sync"
+	"github.com/plasmash/plasmactl-component/internal/sync"
 	"gopkg.in/yaml.v3"
 )
 

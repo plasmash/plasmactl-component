@@ -1,12 +1,12 @@
-package action
+package bump
 
 import (
 	"path/filepath"
 	"strings"
 
 	"github.com/launchrctl/launchr/pkg/action"
-	"github.com/plasmash/plasmactl-component/pkg/repository"
-	"github.com/plasmash/plasmactl-component/pkg/sync"
+	"github.com/plasmash/plasmactl-component/internal/repository"
+	"github.com/plasmash/plasmactl-component/internal/sync"
 )
 
 var unversionedFiles = map[string]struct{}{

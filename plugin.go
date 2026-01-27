@@ -10,10 +10,16 @@ import (
 	"github.com/launchrctl/keyring"
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
-	caction "github.com/plasmash/plasmactl-component/action"
+
+	"github.com/plasmash/plasmactl-component/actions/attach"
+	"github.com/plasmash/plasmactl-component/actions/bump"
+	"github.com/plasmash/plasmactl-component/actions/configure"
+	"github.com/plasmash/plasmactl-component/actions/depend"
+	"github.com/plasmash/plasmactl-component/actions/detach"
+	"github.com/plasmash/plasmactl-component/actions/sync"
 )
 
-//go:embed action/*.yaml
+//go:embed actions/*/*.yaml
 var actionYamlFS embed.FS
 
 func init() {
@@ -43,7 +49,7 @@ func (p *Plugin) OnAppInit(app launchr.App) error {
 // DiscoverActions implements [launchr.ActionDiscoveryPlugin] interface.
 func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 	// component:bump action
-	actionBumpYaml, _ := actionYamlFS.ReadFile("action/bump.yaml")
+	actionBumpYaml, _ := actionYamlFS.ReadFile("actions/bump/bump.yaml")
 	ba := action.NewFromYAML("component:bump", actionBumpYaml)
 	ba.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		input := a.Input()
@@ -52,14 +58,14 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 
 		log, _, _, term := getLogger(a)
 
-		bump := caction.Bump{Last: last, DryRun: dryRun}
+		bump := bump.Bump{Last: last, DryRun: dryRun}
 		bump.SetLogger(log)
 		bump.SetTerm(term)
 		return bump.Execute()
 	}))
 
 	// component:sync action
-	actionSyncYaml, _ := actionYamlFS.ReadFile("action/sync.yaml")
+	actionSyncYaml, _ := actionYamlFS.ReadFile("actions/sync/sync.yaml")
 	sa := action.NewFromYAML("component:sync", actionSyncYaml)
 	sa.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		input := a.Input()
@@ -75,7 +81,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			hideProgress = true
 		}
 
-		sync := caction.Sync{
+		sync := sync.Sync{
 			Keyring: p.k,
 			Streams: streams,
 
@@ -97,7 +103,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 	}))
 
 	// component:depend action
-	actionDependYaml, _ := actionYamlFS.ReadFile("action/depend.yaml")
+	actionDependYaml, _ := actionYamlFS.ReadFile("actions/depend/depend.yaml")
 	da := action.NewFromYAML("component:depend", actionDependYaml)
 	da.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
@@ -124,7 +130,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		}
 
 		target := input.Arg("target").(string)
-		depend := &caction.Depend{
+		depend := &depend.Depend{
 			Target:     target,
 			Operations: operations,
 			Source:     source,
@@ -138,7 +144,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 	}))
 
 	// component:configure action (unified)
-	actionConfigureYaml, _ := actionYamlFS.ReadFile("action/configure.yaml")
+	actionConfigureYaml, _ := actionYamlFS.ReadFile("actions/configure/configure.yaml")
 	ca := action.NewFromYAML("component:configure", actionConfigureYaml)
 	ca.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
@@ -154,7 +160,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			value = input.Arg("value").(string)
 		}
 
-		configure := &caction.Configure{
+		configure := &configure.Configure{
 			Key:   key,
 			Value: value,
 
@@ -176,13 +182,13 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 	}))
 
 	// component:attach action
-	actionAttachYaml, _ := actionYamlFS.ReadFile("action/attach.yaml")
+	actionAttachYaml, _ := actionYamlFS.ReadFile("actions/attach/attach.yaml")
 	aa := action.NewFromYAML("component:attach", actionAttachYaml)
 	aa.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
 		input := a.Input()
 
-		attach := &caction.Attach{
+		attach := &attach.Attach{
 			Component: input.Arg("component").(string),
 			Chassis:   input.Arg("chassis").(string),
 			Source:    input.Opt("source").(string),
@@ -193,13 +199,13 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 	}))
 
 	// component:detach action
-	actionDetachYaml, _ := actionYamlFS.ReadFile("action/detach.yaml")
+	actionDetachYaml, _ := actionYamlFS.ReadFile("actions/detach/detach.yaml")
 	dta := action.NewFromYAML("component:detach", actionDetachYaml)
 	dta.SetRuntime(action.NewFnRuntime(func(_ context.Context, a *action.Action) error {
 		log, _, _, term := getLogger(a)
 		input := a.Input()
 
-		detach := &caction.Detach{
+		detach := &detach.Detach{
 			Component: input.Arg("component").(string),
 			Chassis:   input.Arg("chassis").(string),
 			Source:    input.Opt("source").(string),

@@ -1,9 +1,10 @@
-package action
+package detach
 
 import (
 	"fmt"
 
 	"github.com/launchrctl/launchr/pkg/action"
+	"github.com/plasmash/plasmactl-component/internal/playbook"
 )
 
 // Detach implements component:detach command
@@ -18,28 +19,28 @@ type Detach struct {
 
 // Execute runs the detach action
 func (d *Detach) Execute() error {
-	layer := extractLayer(d.Component)
+	layer := playbook.ExtractLayer(d.Component)
 	if layer == "" {
 		return fmt.Errorf("invalid component MRN %q: cannot extract layer", d.Component)
 	}
 
-	playbookPath, err := findPlaybook(d.Source, layer)
+	playbookPath, err := playbook.FindPlaybook(d.Source, layer)
 	if err != nil {
 		return err
 	}
 
-	plays, err := loadPlaybook(playbookPath)
+	plays, err := playbook.Load(playbookPath)
 	if err != nil {
 		return err
 	}
 
-	plays, detached := removeFromPlay(plays, d.Component, d.Chassis)
+	plays, detached := playbook.RemoveRole(plays, d.Component, d.Chassis)
 	if !detached {
 		d.Term().Warning().Printfln("Component %s not attached to %s", d.Component, d.Chassis)
 		return nil
 	}
 
-	if err := savePlaybook(playbookPath, plays); err != nil {
+	if err := playbook.Save(playbookPath, plays); err != nil {
 		return err
 	}
 
