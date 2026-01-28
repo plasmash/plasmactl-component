@@ -25,7 +25,7 @@ action:
     - name: operations
       title: Operations
       description: "Dependency operations: DEP (add), DEP- (remove), OLD/NEW (replace)"
-      type: "[]string"
+      type: array
       required: false
   options:
     - name: source
@@ -38,13 +38,13 @@ action:
       shorthand: p
       title: Path
       description: Show paths instead of MRNs
-      type: bool
+      type: boolean
       default: false
     - name: tree
       shorthand: t
       title: Tree
       description: Show dependencies in tree-like output
-      type: bool
+      type: boolean
       default: false
     - name: depth
       shorthand: d

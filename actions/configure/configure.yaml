@@ -16,23 +16,23 @@ action:
       shorthand: g
       title: Get
       description: Get the value of a key
-      type: bool
+      type: boolean
       default: false
     - name: list
       shorthand: l
       title: List
       description: List all configuration values
-      type: bool
+      type: boolean
       default: false
     - name: validate
       title: Validate
       description: Validate configuration against component schemas
-      type: bool
+      type: boolean
       default: false
     - name: generate
       title: Generate
       description: Generate/rotate a secret value
-      type: bool
+      type: boolean
       default: false
     - name: at
       shorthand: a
@@ -43,7 +43,7 @@ action:
       shorthand: v
       title: Vault
       description: Target vault (secrets) instead of vars
-      type: bool
+      type: boolean
       default: false
     - name: format
       shorthand: o
@@ -54,10 +54,10 @@ action:
     - name: strict
       title: Strict
       description: Fail on warnings during --validate
-      type: bool
+      type: boolean
       default: false
     - name: yes-i-am-sure
       title: Yes I Am Sure
       description: Skip confirmation for --generate (secret rotation)
-      type: bool
+      type: boolean
       default: false
