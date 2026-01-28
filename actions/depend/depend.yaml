@@ -1,22 +1,7 @@
 runtime: plugin
 action:
   title: Depend
-  description: |
-    Manage component dependencies (kubectl-style).
-
-    Usage patterns:
-      component:depend TARGET                    # Show dependencies
-      component:depend TARGET DEP...             # Add dependencies
-      component:depend TARGET DEP-               # Remove dependency (trailing dash)
-      component:depend TARGET OLD/NEW            # Replace dependency
-
-    Examples:
-      component:depend cognition.skills.analyzer
-      component:depend cognition.skills.analyzer cognition.functions.nlp
-      component:depend cognition.skills.analyzer cognition.functions.nlp cognition.functions.tokenizer
-      component:depend cognition.skills.analyzer cognition.functions.old-
-      component:depend cognition.skills.analyzer cognition.functions.v1/cognition.functions.v2
-      component:depend cognition.skills.analyzer newdep olddep- v1/v2
+  description: Manage component dependencies
   arguments:
     - name: target
       title: Target
