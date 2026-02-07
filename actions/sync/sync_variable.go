@@ -22,10 +22,10 @@ import (
 )
 
 func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
-	if s.FilterByResourceUsage {
+	if s.FilterByComponentUsage {
 		// Quick return in case of empty usage pool.
-		usedResources := buildInv.GetUsedResources()
-		if len(usedResources) == 0 {
+		usedComponents := buildInv.GetUsedComponents()
+		if len(usedComponents) == 0 {
 			return nil
 		}
 	}
@@ -136,7 +136,7 @@ func (s *Sync) findVariableUpdateTime(varsFile string, inv *sync.Inventory, gitP
 
 	for k, value := range varsYaml {
 		v := sync.NewVariable(varsFile, k, hashString(fmt.Sprint(value)), isVault)
-		isUsed := inv.IsUsedVariable(s.FilterByResourceUsage, v.GetName(), v.GetPlatform())
+		isUsed := inv.IsUsedVariable(s.FilterByComponentUsage, v.GetName(), v.GetPlatform())
 		if !isUsed {
 			// launchr.Term().Warning().Printfln("Unused variable %s - %s", v.GetName(), v.GetPath())
 			continue

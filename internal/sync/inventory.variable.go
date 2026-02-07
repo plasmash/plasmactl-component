@@ -101,8 +101,8 @@ func (v *Variable) IsVault() bool {
 	return v.isVault
 }
 
-// GetVariableResources returns list of resources which depends on variable.
-func (i *Inventory) GetVariableResources(variableName, variablePlatform string) []string {
+// GetVariableComponents returns list of components which depends on variable.
+func (i *Inventory) GetVariableComponents(variableName, variablePlatform string) []string {
 	var result []string
 
 	if !i.variablesUsageCalculated {
@@ -118,12 +118,12 @@ func (i *Inventory) GetVariableResources(variableName, variablePlatform string) 
 	variablesList[variableName][variablePlatform] = true
 
 	for v, m := range variablesList {
-		if _, ok := i.variableResourcesDependencyMap[v]; !ok {
+		if _, ok := i.variableComponentsDependencyMap[v]; !ok {
 			continue
 		}
 
 		for p := range m {
-			items, ok := i.variableResourcesDependencyMap[v][p]
+			items, ok := i.variableComponentsDependencyMap[v][p]
 			if !ok {
 				continue
 			}
@@ -135,7 +135,7 @@ func (i *Inventory) GetVariableResources(variableName, variablePlatform string) 
 	return result
 }
 
-// GetVariableResources returns list of variables which depends on variable.
+// getVariableVariables returns list of variables which depend on variable.
 func (i *Inventory) getVariableVariables(variableName, variablePlatform string, result map[string]map[string]bool) {
 	if p, ok := i.variableVariablesDependencyMap[variableName]; ok {
 		if v, okP := p[variablePlatform]; okP {
@@ -159,17 +159,17 @@ func (i *Inventory) CalculateVariablesUsage(vaultpass string) error {
 
 	variableVariablesDependencyMap := i.buildVariableDependencies(keys, vars)
 
-	// Find all resources related template (templates/*.j2) and config (tasks/configuration.yaml) files. split by playbook
+	// Find all components related template (templates/*.j2) and config (tasks/configuration.yaml) files. split by playbook
 	// Iterate all files to find {{ and/or }}, get these lines
 	// iterate potential lines with vars usage and check each variable in it.
 
-	variableResourcesDependencyMap, err := i.buildVariableResourcesDependencies(keys, false)
+	variableComponentsDependencyMap, err := i.buildVariableComponentsDependencies(keys, false)
 	if err != nil {
 		return err
 	}
 
 	i.variableVariablesDependencyMap = variableVariablesDependencyMap
-	i.variableResourcesDependencyMap = variableResourcesDependencyMap
+	i.variableComponentsDependencyMap = variableComponentsDependencyMap
 
 	i.variablesUsageCalculated = true
 
@@ -469,8 +469,8 @@ func (i *Inventory) extractKeysAndVars(data interface{}, group string, groupKeys
 	}
 }
 
-func (i *Inventory) buildVariableResourcesDependencies(groupKeys map[string]map[string]bool, filesOnly bool) (map[string]map[string][]string, error) {
-	groupFiles, err := i.fc.FindResourcesFiles("")
+func (i *Inventory) buildVariableComponentsDependencies(groupKeys map[string]map[string]bool, filesOnly bool) (map[string]map[string][]string, error) {
+	groupFiles, err := i.fc.FindComponentsFiles("")
 	if err != nil {
 		return nil, err
 	}
@@ -505,28 +505,28 @@ func (i *Inventory) buildVariableResourcesDependencies(groupKeys map[string]map[
 		return reverseDependencyMap, nil
 	}
 
-	varToResourcesDependencyMap := make(map[string]map[string][]string)
+	varToComponentsDependencyMap := make(map[string]map[string][]string)
 	for v, pl := range reverseDependencyMap {
 		for p, files := range pl {
 			var res []string
 			for _, path := range files {
-				platform, kind, role, err := ProcessResourcePath(path)
+				platform, kind, role, err := ProcessComponentPath(path)
 				if err != nil || (platform == "" || kind == "" || role == "") {
 					continue
 				}
 
-				resourceName := PrepareMachineResourceName(platform, kind, role)
-				res = append(res, resourceName)
+				componentName := PrepareComponentName(platform, kind, role)
+				res = append(res, componentName)
 			}
-			if varToResourcesDependencyMap[v] == nil {
-				varToResourcesDependencyMap[v] = make(map[string][]string)
+			if varToComponentsDependencyMap[v] == nil {
+				varToComponentsDependencyMap[v] = make(map[string][]string)
 			}
 
-			varToResourcesDependencyMap[v][p] = res
+			varToComponentsDependencyMap[v][p] = res
 		}
 	}
 
-	return varToResourcesDependencyMap, nil
+	return varToComponentsDependencyMap, nil
 }
 
 func (i *Inventory) processGroupFiles(group string, files []string, groupKeys map[string]map[string]bool, reverseDependencyMap map[string]map[string][]string, mx *sync.Mutex) error {
@@ -556,7 +556,7 @@ func (i *Inventory) processGroupFiles(group string, files []string, groupKeys ma
 		keyGroup := group
 		if group != rootPlatform {
 			// in case if key doesn't exist in target group, but exists in platform
-			// assign all group related resources to platform
+			// assign all group related components to platform
 			okP := platformKeys[key]
 			okG := currentGroupKeys[key]
 			if okP && !okG {
@@ -649,11 +649,11 @@ func extractLinesWithVariables(filePath string) ([]string, error) {
 	return linesWithVariables, nil
 }
 
-// IsUsedVariable checks if variable used in any resource.
-// checkResourcesUsage adds additional check if resources are used in platform.
-func (i *Inventory) IsUsedVariable(checkResourcesUsage bool, variableName, variablePlatform string) bool {
-	if !checkResourcesUsage {
-		_, okM := i.variableResourcesDependencyMap[variableName][variablePlatform]
+// IsUsedVariable checks if variable used in any component.
+// checkComponentsUsage adds additional check if components are used in platform.
+func (i *Inventory) IsUsedVariable(checkComponentsUsage bool, variableName, variablePlatform string) bool {
+	if !checkComponentsUsage {
+		_, okM := i.variableComponentsDependencyMap[variableName][variablePlatform]
 		if okM {
 			return okM
 		}
@@ -662,12 +662,12 @@ func (i *Inventory) IsUsedVariable(checkResourcesUsage bool, variableName, varia
 		i.getVariableVariables(variableName, variablePlatform, variablesList)
 
 		for v, m := range variablesList {
-			if _, ok := i.variableResourcesDependencyMap[v]; !ok {
+			if _, ok := i.variableComponentsDependencyMap[v]; !ok {
 				continue
 			}
 
 			for p := range m {
-				_, ok := i.variableResourcesDependencyMap[v][p]
+				_, ok := i.variableComponentsDependencyMap[v][p]
 				if !ok {
 					continue
 				}
@@ -679,14 +679,14 @@ func (i *Inventory) IsUsedVariable(checkResourcesUsage bool, variableName, varia
 		return false
 	}
 
-	usedResources := i.GetUsedResources()
-	if len(usedResources) == 0 {
+	usedComponents := i.GetUsedComponents()
+	if len(usedComponents) == 0 {
 		return false
 	}
 
-	resources := i.GetVariableResources(variableName, variablePlatform)
-	for _, item := range resources {
-		if usedResources[item] {
+	components := i.GetVariableComponents(variableName, variablePlatform)
+	for _, item := range components {
+		if usedComponents[item] {
 			return true
 		}
 	}

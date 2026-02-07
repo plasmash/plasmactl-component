@@ -13,27 +13,28 @@ import (
 )
 
 var (
-	tplVersionGet = "failed to get resource version (%s)"
-	tplVersionSet = "failed to update resource version (%s)"
+	tplVersionGet = "failed to get component version (%s)"
+	tplVersionSet = "failed to update component version (%s)"
 )
 
-// PrepareMachineResourceName concatenates resource platform, kind and role via specific template.
-// It allows to have common resource names.
-func PrepareMachineResourceName(platform, kind, role string) string {
-	return fmt.Sprintf("%s__%s__%s", platform, kind, role)
+// PrepareComponentName creates a dot-notation component name from parts.
+// Example: PrepareComponentName("foundation", "applications", "auth") -> "foundation.applications.auth"
+func PrepareComponentName(layer, kind, name string) string {
+	return fmt.Sprintf("%s.%s.%s", layer, kind, name)
 }
 
-// ConvertMRNtoPath transforms machine resource name to templated path to resource.
-func ConvertMRNtoPath(mrn string) (string, error) {
-	parts := strings.Split(mrn, "__")
+// ConvertNameToPath transforms component name (dot notation) to filesystem path.
+// Example: "foundation.applications.auth" -> "foundation/applications/auth"
+func ConvertNameToPath(name string) (string, error) {
+	parts := strings.Split(name, ".")
 	if len(parts) != 3 {
-		return "", errors.New("invalid MRN format")
+		return "", errors.New("invalid component name format (expected: layer.kind.name)")
 	}
-	return filepath.Join(parts[0], parts[1], "roles", parts[2]), nil
+	return filepath.Join(parts[0], parts[1], parts[2]), nil
 }
 
-// Resource represents a platform resource
-type Resource struct {
+// Component represents a platform component
+type Component struct {
 	name       string
 	pathPrefix string
 	platform   string
@@ -41,15 +42,16 @@ type Resource struct {
 	role       string
 }
 
-// NewResource returns new [Resource] instance.
-func NewResource(mrn, prefix string) *Resource {
-	parts := strings.Split(mrn, "__")
+// NewComponent returns new [Component] instance.
+// Accepts dot notation: "foundation.applications.auth"
+func NewComponent(name, prefix string) *Component {
+	parts := strings.Split(name, ".")
 	if len(parts) != 3 {
-		panic("invalid MRN submitted")
+		panic("invalid component name submitted (expected: layer.kind.name)")
 	}
 
-	return &Resource{
-		name:       mrn,
+	return &Component{
+		name:       name,
 		pathPrefix: prefix,
 		platform:   parts[0],
 		kind:       parts[1],
@@ -57,50 +59,50 @@ func NewResource(mrn, prefix string) *Resource {
 	}
 }
 
-// GetName returns a machine resource name.
-func (r *Resource) GetName() string {
-	return r.name
+// GetName returns a machine component name.
+func (c *Component) GetName() string {
+	return c.name
 }
 
-// GetPlatform returns a resource platform.
-func (r *Resource) GetPlatform() string {
-	return r.platform
+// GetPlatform returns a component platform.
+func (c *Component) GetPlatform() string {
+	return c.platform
 }
 
-// GetKind returns a resource kind.
-func (r *Resource) GetKind() string {
-	return r.kind
+// GetKind returns a component kind.
+func (c *Component) GetKind() string {
+	return c.kind
 }
 
-// GetRole returns a resource name.
-func (r *Resource) GetRole() string {
-	return r.role
+// GetRole returns a component name.
+func (c *Component) GetRole() string {
+	return c.role
 }
 
-// IsValidResource checks if resource has meta file.
-func (r *Resource) IsValidResource() bool {
-	metaPath := r.getRealMetaPath()
+// IsValidComponent checks if component has meta file.
+func (c *Component) IsValidComponent() bool {
+	metaPath := c.getRealMetaPath()
 	_, err := os.Stat(metaPath)
 
 	return !os.IsNotExist(err)
 }
 
-func (r *Resource) getRealMetaPath() string {
-	meta := r.BuildMetaPath()
-	return filepath.Join(r.pathPrefix, meta)
+func (c *Component) getRealMetaPath() string {
+	meta := c.BuildMetaPath()
+	return filepath.Join(c.pathPrefix, meta)
 }
 
-// BuildMetaPath returns common path to resource meta.
-func (r *Resource) BuildMetaPath() string {
-	parts := strings.Split(r.GetName(), "__")
-	meta := filepath.Join(parts[0], parts[1], "roles", parts[2], "meta", "plasma.yaml")
+// BuildMetaPath returns common path to component meta.
+func (c *Component) BuildMetaPath() string {
+	parts := strings.Split(c.GetName(), ".")
+	meta := filepath.Join(parts[0], parts[1], parts[2], "meta", "plasma.yaml")
 	return meta
 }
 
-// GetVersion retrieves the version of the resource from the plasma.yaml
-func (r *Resource) GetVersion() (string, []string, error) {
+// GetVersion retrieves the version of the component from the plasma.yaml
+func (c *Component) GetVersion() (string, []string, error) {
 	var debug []string
-	metaFile := r.getRealMetaPath()
+	metaFile := c.getRealMetaPath()
 	if _, err := os.Stat(metaFile); err == nil {
 		data, errRead := os.ReadFile(filepath.Clean(metaFile))
 		if errRead != nil {
@@ -144,10 +146,10 @@ func GetMetaVersion(meta map[string]any) string {
 	return ""
 }
 
-// GetBaseVersion returns resource version without `-` if any.
-func (r *Resource) GetBaseVersion() (string, string, []string, error) {
+// GetBaseVersion returns component version without `-` if any.
+func (c *Component) GetBaseVersion() (string, string, []string, error) {
 	var debug []string
-	version, debugMessages, err := r.GetVersion()
+	version, debugMessages, err := c.GetVersion()
 	debug = append(debug, debugMessages...)
 	if err != nil {
 		return "", "", debug, err
@@ -155,16 +157,16 @@ func (r *Resource) GetBaseVersion() (string, string, []string, error) {
 
 	split := strings.Split(version, "-")
 	if len(split) > 2 {
-		debug = append(debug, fmt.Sprintf("Resource %s has incorrect format %s", r.GetName(), version))
+		debug = append(debug, fmt.Sprintf("Component %s has incorrect format %s", c.GetName(), version))
 	}
 
 	return split[0], version, debug, nil
 }
 
-// UpdateVersion updates the version of the resource in the plasma.yaml file
-func (r *Resource) UpdateVersion(version string) ([]string, error) {
+// UpdateVersion updates the version of the component in the plasma.yaml file
+func (c *Component) UpdateVersion(version string) ([]string, error) {
 	var debug []string
-	metaFilepath := r.getRealMetaPath()
+	metaFilepath := c.getRealMetaPath()
 	if _, err := os.Stat(metaFilepath); err == nil {
 		data, errRead := os.ReadFile(filepath.Clean(metaFilepath))
 		if errRead != nil {
@@ -206,31 +208,31 @@ func (r *Resource) UpdateVersion(version string) ([]string, error) {
 	return debug, fmt.Errorf(tplVersionSet, metaFilepath)
 }
 
-// BuildResourceFromPath builds a new instance of Resource from the given path.
-func BuildResourceFromPath(path, pathPrefix string) *Resource {
-	platform, kind, role, err := ProcessResourcePath(path)
+// BuildComponentFromPath builds a new instance of Component from the given path.
+func BuildComponentFromPath(path, pathPrefix string) *Component {
+	platform, kind, role, err := ProcessComponentPath(path)
 	if err != nil || (platform == "" || kind == "" || role == "") {
 		return nil
 	}
 
-	resource := NewResource(PrepareMachineResourceName(platform, kind, role), pathPrefix)
-	if !resource.IsValidResource() {
+	component := NewComponent(PrepareComponentName(platform, kind, role), pathPrefix)
+	if !component.IsValidComponent() {
 		return nil
 	}
-	return resource
+	return component
 }
 
-// ProcessResourcePath splits resource path onto platform, kind and role.
-func ProcessResourcePath(path string) (string, string, string, error) {
+// ProcessComponentPath splits component path onto platform, kind and role.
+func ProcessComponentPath(path string) (string, string, string, error) {
 	parts := strings.Split(path, "/")
-	if len(parts) > 3 {
-		return parts[0], parts[1], parts[3], nil
+	if len(parts) >= 3 {
+		return parts[0], parts[1], parts[2], nil
 	}
 
-	return "", "", "", errors.New("empty resource path")
+	return "", "", "", errors.New("empty component path")
 }
 
-// IsUpdatableKind checks if resource kind is in [Kinds] range.
+// IsUpdatableKind checks if component kind is in [Kinds] range.
 func IsUpdatableKind(kind string) bool {
 	_, ok := Kinds[kind]
 	return ok
@@ -350,17 +352,17 @@ func (m *OrderedMap[T]) ToDict() map[string]T {
 	return dict
 }
 
-// GetUsedResources returns list of used resources.
-func (i *Inventory) GetUsedResources() map[string]bool {
-	if !i.resourcesUsageCalculated {
-		panic("use inventory.CalculateResourcesUsage first")
+// GetUsedComponents returns list of used components.
+func (i *Inventory) GetUsedComponents() map[string]bool {
+	if !i.componentsUsageCalculated {
+		panic("use inventory.CalculateComponentsUsage first")
 	}
 
-	return i.usedResources
+	return i.usedComponents
 }
 
-// CalculateResourcesUsage parse platform playbooks and determine resources used in platform.
-func (i *Inventory) CalculateResourcesUsage() error {
+// CalculateComponentsUsage parse platform playbooks and determine components used in platform.
+func (i *Inventory) CalculateComponentsUsage() error {
 	file, err := os.ReadFile(filepath.Join(i.sourceDir, "platform/platform.yaml"))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -377,7 +379,7 @@ func (i *Inventory) CalculateResourcesUsage() error {
 	}
 
 	var playbooks []string
-	resources := make(map[string]bool)
+	components := make(map[string]bool)
 
 	for _, item := range platformData {
 		if m, ok := item.(map[string]any); ok {
@@ -390,7 +392,7 @@ func (i *Inventory) CalculateResourcesUsage() error {
 					}
 				}
 
-				extractPlaybookRoles(resources, k, val)
+				extractPlaybookRoles(components, k, val)
 			}
 		}
 	}
@@ -410,25 +412,24 @@ func (i *Inventory) CalculateResourcesUsage() error {
 		for _, item := range playbookData {
 			if m, ok := item.(map[string]any); ok {
 				for k, val := range m {
-					extractPlaybookRoles(resources, k, val)
+					extractPlaybookRoles(components, k, val)
 				}
 			}
 		}
 	}
 
-	usedResourcesWithDependencies := make(map[string]bool)
-	for r := range resources {
-		mrn := strings.ReplaceAll(r, ".", "__")
-		deps := i.GetDependsOnResources(mrn, -1)
+	usedComponentsWithDependencies := make(map[string]bool)
+	for c := range components {
+		deps := i.GetRequiresComponents(c, -1)
 
-		usedResourcesWithDependencies[mrn] = true
+		usedComponentsWithDependencies[c] = true
 		for d := range deps {
-			usedResourcesWithDependencies[d] = true
+			usedComponentsWithDependencies[d] = true
 		}
 	}
 
-	i.usedResources = usedResourcesWithDependencies
-	i.resourcesUsageCalculated = true
+	i.usedComponents = usedComponentsWithDependencies
+	i.componentsUsageCalculated = true
 
 	return nil
 }

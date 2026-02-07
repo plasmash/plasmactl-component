@@ -34,7 +34,7 @@ type CommitsGroup struct {
 	date   time.Time
 }
 
-func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*sync.Resource], packagePathMap map[string]string) error {
+func (s *Sync) populateTimelineComponents(components map[string]*sync.OrderedMap[*sync.Component], packagePathMap map[string]string) error {
 	var wg async.WaitGroup
 	var mx async.Mutex
 
@@ -63,7 +63,7 @@ func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*
 					path := domain["path"].(string)
 					pb := domain["pb"].(*pterm.ProgressbarPrinter)
 
-					if err := s.findResourcesChangeTime(ctx, resources[name], path, &mx, pb); err != nil {
+					if err := s.findComponentsChangeTime(ctx, components[name], path, &mx, pb); err != nil {
 						select {
 						case errorChan <- fmt.Errorf("worker %d error processing %s: %w", workerID, name, err):
 							cancel()
@@ -78,8 +78,8 @@ func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*
 	}
 
 	for name, path := range packagePathMap {
-		if resources[name].Len() == 0 {
-			// Skipping packages with 0 composed resources.
+		if components[name].Len() == 0 {
+			// Skipping packages with 0 composed components.
 			continue
 		}
 
@@ -88,8 +88,8 @@ func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*
 		var p *pterm.ProgressbarPrinter
 		var err error
 		if s.ShowProgress {
-			p = pterm.DefaultProgressbar.WithTotal(resources[name].Len()).WithWriter(multi.NewWriter())
-			p, err = p.Start(fmt.Sprintf("Collecting resources from %s", name))
+			p = pterm.DefaultProgressbar.WithTotal(components[name].Len()).WithWriter(multi.NewWriter())
+			p, err = p.Start(fmt.Sprintf("Collecting components from %s", name))
 			if err != nil {
 				return err
 			}
@@ -125,7 +125,7 @@ func (s *Sync) populateTimelineResources(resources map[string]*sync.OrderedMap[*
 	return nil
 }
 
-func collectResourcesCommits(r *git.Repository, beforeDate string) (*sync.OrderedMap[*CommitsGroup], map[string]map[string]string, error) {
+func collectComponentsCommits(r *git.Repository, beforeDate string) (*sync.OrderedMap[*CommitsGroup], map[string]map[string]string, error) {
 	ref, err := r.Head()
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't get HEAD ref > %w", err)
@@ -223,22 +223,22 @@ func collectResourcesCommits(r *git.Repository, beforeDate string) (*sync.Ordere
 	return groups, hashes, nil
 }
 
-func (s *Sync) findResourcesChangeTime(ctx context.Context, namespaceResources *sync.OrderedMap[*sync.Resource], gitPath string, mx *async.Mutex, p *pterm.ProgressbarPrinter) error {
+func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents *sync.OrderedMap[*sync.Component], gitPath string, mx *async.Mutex, p *pterm.ProgressbarPrinter) error {
 	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
-	groups, commitsMap, err := collectResourcesCommits(repo, s.TimeDepth)
+	groups, commitsMap, err := collectComponentsCommits(repo, s.TimeDepth)
 	if err != nil {
-		return fmt.Errorf("collect resources commits > %w", err)
+		return fmt.Errorf("collect components commits > %w", err)
 	}
 
 	var wg async.WaitGroup
 	errorChan := make(chan error, 1)
 	//maxWorkers := 3
 	maxWorkers := runtime.NumCPU()
-	resourcesChan := make(chan *sync.Resource, namespaceResources.Len())
+	componentsChan := make(chan *sync.Component, namespaceComponents.Len())
 
 	for w := 0; w < maxWorkers; w++ {
 		go func() {
@@ -246,11 +246,11 @@ func (s *Sync) findResourcesChangeTime(ctx context.Context, namespaceResources *
 				select {
 				case <-ctx.Done():
 					return
-				case r, ok := <-resourcesChan:
+				case c, ok := <-componentsChan:
 					if !ok {
 						return
 					}
-					if err = s.processResource(r, groups, commitsMap, repo, gitPath, mx); err != nil {
+					if err = s.processComponent(c, groups, commitsMap, repo, gitPath, mx); err != nil {
 						if p != nil {
 							_, _ = p.Stop()
 						}
@@ -270,16 +270,16 @@ func (s *Sync) findResourcesChangeTime(ctx context.Context, namespaceResources *
 		}()
 	}
 
-	for _, k := range namespaceResources.Keys() {
-		r, ok := namespaceResources.Get(k)
+	for _, k := range namespaceComponents.Keys() {
+		c, ok := namespaceComponents.Get(k)
 		if !ok {
 			continue
 		}
 
 		wg.Add(1)
-		resourcesChan <- r
+		componentsChan <- c
 	}
-	close(resourcesChan)
+	close(componentsChan)
 
 	go func() {
 		wg.Wait()
@@ -295,14 +295,14 @@ func (s *Sync) findResourcesChangeTime(ctx context.Context, namespaceResources *
 	return nil
 }
 
-func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, _ *git.Repository, gitPath string, mx *async.Mutex) error {
+func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, _ *git.Repository, gitPath string, mx *async.Mutex) error {
 	repo, err := git.PlainOpen(gitPath)
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
-	buildResource := sync.NewResource(resource.GetName(), s.BuildDir)
-	currentVersion, debug, err := buildResource.GetVersion()
+	buildComponent := sync.NewComponent(component.GetName(), s.BuildDir)
+	currentVersion, debug, err := buildComponent.GetVersion()
 	for _, d := range debug {
 		s.Log().Debug("error", "message", d)
 	}
@@ -326,14 +326,14 @@ func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.Orde
 		return fmt.Errorf("can't get HEAD commit object > %w", err)
 	}
 
-	resourceMetaPath := resource.BuildMetaPath()
+	componentMetaPath := component.BuildMetaPath()
 
-	file, err := headCommit.File(resourceMetaPath)
+	file, err := headCommit.File(componentMetaPath)
 	if err != nil {
-		return fmt.Errorf("opening file %s in commit %s > %w", resourceMetaPath, headCommit.Hash, err)
+		return fmt.Errorf("opening file %s in commit %s > %w", componentMetaPath, headCommit.Hash, err)
 	}
 
-	metaFile, err := loadYamlFileFromBytes(file, resourceMetaPath)
+	metaFile, err := loadYamlFileFromBytes(file, componentMetaPath)
 	if err != nil {
 		return fmt.Errorf("YAML load commit %s > %w", headCommit.Hash, err)
 	}
@@ -348,7 +348,7 @@ func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.Orde
 
 	overridden := false
 	if currentVersion != headVersion {
-		msg := fmt.Sprintf("Version of `%s` doesn't match HEAD commit", resource.GetName())
+		msg := fmt.Sprintf("Version of `%s` doesn't match HEAD commit", component.GetName())
 		if !s.AllowOverride {
 			return errors.New(msg)
 		}
@@ -367,25 +367,25 @@ func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.Orde
 		item, ok := commitsMap[currentVersion]
 		//mx.Unlock()
 		if !ok {
-			s.Log().Warn(fmt.Sprintf("Latest version of `%s` doesn't match any existing commit", resource.GetName()))
+			s.Log().Warn(fmt.Sprintf("Latest version of `%s` doesn't match any existing commit", component.GetName()))
 		}
 
 		var commit *object.Commit
 		var errProcess error
 
 		if len(item) == 0 {
-			commit, errProcess = s.processUnknownSection(commitsGroups, resourceMetaPath, currentVersion, repo, currentMetaHash)
+			commit, errProcess = s.processUnknownSection(commitsGroups, componentMetaPath, currentVersion, repo, currentMetaHash)
 		} else {
 			group, okSection := commitsGroups.Get(item["section"])
 			if !okSection {
 				panic(fmt.Sprintf("Requested group %s doesn't exist", item["section"]))
 			}
 
-			commit, errProcess = s.processBumpSection(group, resourceMetaPath, currentVersion, repo, currentMetaHash)
+			commit, errProcess = s.processBumpSection(group, componentMetaPath, currentVersion, repo, currentMetaHash)
 		}
 
 		if errors.Is(errProcess, errRunBruteProcess) {
-			commit, errProcess = s.processAllSections(commitsGroups, resourceMetaPath, currentVersion, repo, currentMetaHash)
+			commit, errProcess = s.processAllSections(commitsGroups, componentMetaPath, currentVersion, repo, currentMetaHash)
 		}
 
 		if errProcess != nil {
@@ -393,7 +393,7 @@ func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.Orde
 		}
 
 		if commit == nil {
-			return fmt.Errorf("couldn't find version commit for %s", resource.GetName())
+			return fmt.Errorf("couldn't find version commit for %s", component.GetName())
 		}
 
 		versionHash.hash = commit.Hash.String()
@@ -404,26 +404,26 @@ func (s *Sync) processResource(resource *sync.Resource, commitsGroups *sync.Orde
 	mx.Lock()
 	defer mx.Unlock()
 
-	s.Log().Debug("add resource to timeline",
-		slog.String("mrn", resource.GetName()),
+	s.Log().Debug("add component to timeline",
+		slog.String("mrn", component.GetName()),
 		slog.String("commit", versionHash.hash),
 		slog.String("version", currentVersion),
 		slog.Time("date", versionHash.hashTime),
 	)
 
 	if versionHash.author != repository.Author && versionHash.author != buildHackAuthor {
-		s.Log().Warn(fmt.Sprintf("Latest commit of %s is not a bump commit", resource.GetName()))
+		s.Log().Warn(fmt.Sprintf("Latest commit of %s is not a bump commit", component.GetName()))
 	}
 
-	tri := sync.NewTimelineResourcesItem(currentVersion, versionHash.hash, versionHash.hashTime, s.Term())
-	tri.AddResource(resource)
+	tci := sync.NewTimelineComponentsItem(currentVersion, versionHash.hash, versionHash.hashTime, s.Term())
+	tci.AddComponent(component)
 
-	s.timeline = sync.AddToTimeline(s.timeline, tri)
+	s.timeline = sync.AddToTimeline(s.timeline, tci)
 
 	return nil
 }
 
-func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup], componentMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	keys := commitsGroups.Keys()
 	for i := commitsGroups.Len() - 1; i >= 0; i-- {
 		group, _ := commitsGroups.Get(keys[i])
@@ -440,9 +440,9 @@ func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup],
 			fileHash = originalHash
 			commitWeNeed = sectionCommit
 		} else {
-			sectionMetaHash, sectionMetaFile, err := getFileHashFromCommit(sectionCommit, resourceMetaPath)
+			sectionMetaHash, sectionMetaFile, err := getFileHashFromCommit(sectionCommit, componentMetaPath)
 			if err != nil {
-				// Iterate until we find group which contains resource with current version.
+				// Iterate until we find group which contains component with current version.
 				if errors.Is(err, object.ErrFileNotFound) {
 					continue
 				}
@@ -450,7 +450,7 @@ func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup],
 				return nil, fmt.Errorf("can't hash meta file from commit %s - %w", group.commit, err)
 			}
 
-			sectionMetaYaml, err := loadYamlFileFromBytes(sectionMetaFile, resourceMetaPath)
+			sectionMetaYaml, err := loadYamlFileFromBytes(sectionMetaFile, componentMetaPath)
 			if err != nil {
 				return nil, fmt.Errorf("YAML load group commit %s > %w", group.commit, err)
 			}
@@ -470,7 +470,7 @@ func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup],
 				return nil, errItm
 			}
 
-			itemMetaHash, itemMetaFile, errItm := getFileHashFromCommit(itemCommit, resourceMetaPath)
+			itemMetaHash, itemMetaFile, errItm := getFileHashFromCommit(itemCommit, componentMetaPath)
 			if errItm != nil {
 				// Files don't exist, it means they were created in previous commit.
 				if errors.Is(errItm, object.ErrFileNotFound) {
@@ -485,7 +485,7 @@ func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup],
 				continue
 			}
 
-			itemMetaYaml, errItm := loadYamlFileFromBytes(itemMetaFile, resourceMetaPath)
+			itemMetaYaml, errItm := loadYamlFileFromBytes(itemMetaFile, componentMetaPath)
 			if errItm != nil {
 				return nil, fmt.Errorf("YAML load item commit %s > %w", itemCommit.Hash, errItm)
 			}
@@ -505,7 +505,7 @@ func (s *Sync) processAllSections(commitsGroups *sync.OrderedMap[*CommitsGroup],
 	return nil, nil
 }
 
-func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGroup], resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGroup], componentMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	keys := commitsGroups.Keys()
 	for i := commitsGroups.Len() - 1; i >= 0; i-- {
 		group, _ := commitsGroups.Get(keys[i])
@@ -522,7 +522,7 @@ func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGrou
 			return nil, fmt.Errorf("can't get group commit object %s > %w", group.commit, err)
 		}
 
-		sectionMetaHash, _, err := getFileHashFromCommit(sectionCommit, resourceMetaPath)
+		sectionMetaHash, _, err := getFileHashFromCommit(sectionCommit, componentMetaPath)
 		if err != nil {
 			if errors.Is(err, object.ErrFileNotFound) {
 				continue
@@ -547,7 +547,7 @@ func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGrou
 			return nil, fmt.Errorf("can't get item commit object %s > %w", itemCommit.Hash.String(), errItem)
 		}
 
-		itemMetaHash, itemMetaFile, errItem := getFileHashFromCommit(itemCommit, resourceMetaPath)
+		itemMetaHash, itemMetaFile, errItem := getFileHashFromCommit(itemCommit, componentMetaPath)
 		if errItem != nil {
 			// How it's possible to not have meta file in commit before bump ?
 			// @todo case looks impossible, maybe makes sense to panic here
@@ -561,7 +561,7 @@ func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGrou
 		// Hashes don't match, as expected
 		if originalHash != itemMetaHash {
 			// Ensure real version is different
-			itemMetaYaml, errMeta := loadYamlFileFromBytes(itemMetaFile, resourceMetaPath)
+			itemMetaYaml, errMeta := loadYamlFileFromBytes(itemMetaFile, componentMetaPath)
 			if errMeta != nil {
 				return nil, fmt.Errorf("YAML load item commit %s > %w", itemCommit.Hash, errMeta)
 			}
@@ -583,7 +583,7 @@ func (s *Sync) processUnknownSection(commitsGroups *sync.OrderedMap[*CommitsGrou
 	return nil, nil
 }
 
-func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
+func (s *Sync) processBumpSection(group *CommitsGroup, componentMetaPath, currentVersion string, repo *git.Repository, originalHash string) (*object.Commit, error) {
 	if group.name == headGroupName || len(group.items) == 0 {
 		// Something wrong with process in this case. It's not possible to have version from head commits group.
 		// Either someone can predict future or git history was manipulated. Send to manual search in this case.
@@ -597,9 +597,9 @@ func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, current
 		return nil, fmt.Errorf("can't get group commit object %s > %w", group.commit, err)
 	}
 
-	sectionMetaHash, _, err := getFileHashFromCommit(sectionCommit, resourceMetaPath)
+	sectionMetaHash, _, err := getFileHashFromCommit(sectionCommit, componentMetaPath)
 	if err != nil {
-		// 'Bad' resource version was used and assigned to group. Requires manual search.
+		// 'Bad' component version was used and assigned to group. Requires manual search.
 		if errors.Is(err, object.ErrFileNotFound) {
 			return nil, errRunBruteProcess
 		}
@@ -608,7 +608,7 @@ func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, current
 	}
 
 	if originalHash != sectionMetaHash {
-		// 'Bad' resource version was used and assigned to group, but file exists. Requires manual search.
+		// 'Bad' component version was used and assigned to group, but file exists. Requires manual search.
 		return nil, errRunBruteProcess
 	}
 
@@ -619,7 +619,7 @@ func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, current
 		return nil, fmt.Errorf("can't get item commit object %s > %w", itemCommit.Hash.String(), errItem)
 	}
 
-	itemMetaHash, itemMetaFile, errItem := getFileHashFromCommit(itemCommit, resourceMetaPath)
+	itemMetaHash, itemMetaFile, errItem := getFileHashFromCommit(itemCommit, componentMetaPath)
 	if errItem != nil {
 		// How it's possible to not have meta file in commit before bump ?
 		// @todo case looks impossible, maybe makes sense to panic here
@@ -633,7 +633,7 @@ func (s *Sync) processBumpSection(group *CommitsGroup, resourceMetaPath, current
 	// Hashes don't match, as expected
 	if originalHash != itemMetaHash {
 		// ensure real version is different
-		itemMetaYaml, errMeta := loadYamlFileFromBytes(itemMetaFile, resourceMetaPath)
+		itemMetaYaml, errMeta := loadYamlFileFromBytes(itemMetaFile, componentMetaPath)
 		if errMeta != nil {
 			return nil, fmt.Errorf("YAML load item commit %s > %w", itemCommit.Hash.String(), errMeta)
 		}

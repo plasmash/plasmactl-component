@@ -8,13 +8,20 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/go-git/go-git/v5 v5.16.3
 	github.com/launchrctl/compose v0.16.0
-	github.com/launchrctl/keyring v0.7.0
+	github.com/launchrctl/keyring v0.9.0
 	github.com/launchrctl/launchr v0.22.0
-	github.com/plasmash/plasmactl-chassis v1.0.18
+	github.com/plasmash/plasmactl-chassis v1.0.20
 	github.com/pterm/pterm v0.12.82
 	github.com/sosedoff/ansible-vault-go v0.2.0
 	github.com/stevenle/topsort v0.2.0
 )
+
+require (
+	github.com/plasmash/plasmactl-model v0.0.0-00010101000000-000000000000
+	github.com/plasmash/plasmactl-platform v1.5.1
+)
+
+require gonum.org/v1/gonum v0.17.0 // indirect
 
 require (
 	atomicgo.dev/keyboard v0.2.9 // indirect
@@ -52,7 +59,6 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
@@ -113,7 +119,6 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -162,3 +167,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/plasmash/plasmactl-model => /home/jbguerraz/Sources/plasmactl-model
+
+replace github.com/plasmash/plasmactl-platform => /home/jbguerraz/Sources/plasmactl-platform

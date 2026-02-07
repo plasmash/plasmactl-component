@@ -5,7 +5,7 @@ action:
   arguments:
     - name: target
       title: Target
-      description: Target resource (path or MRN)
+      description: Target component (path or MRN)
       required: true
     - name: operations
       title: Operations
@@ -16,9 +16,9 @@ action:
     - name: source
       shorthand: s
       title: Source
-      description: Resources source directory (for show mode)
+      description: Components source directory (for show mode)
       type: string
-      default: ".plasma/package/compose/merged"
+      default: ".plasma/model/compose/merged/src"
     - name: path
       shorthand: p
       title: Path
@@ -31,9 +31,21 @@ action:
       description: Show dependencies in tree-like output
       type: boolean
       default: false
+    - name: reverse
+      shorthand: r
+      title: Reverse
+      description: Show reverse dependencies (what depends on target)
+      type: boolean
+      default: false
     - name: depth
       shorthand: d
       title: Depth
-      description: Limit recursion lookup depth
+      description: Dependency levels to show (1=direct, 99=all)
       type: integer
-      default: 99
+      default: 1
+    - name: build
+      shorthand: b
+      title: Build
+      description: Include build dependencies (from main.yaml, i.e., helpers/builders)
+      type: boolean
+      default: false

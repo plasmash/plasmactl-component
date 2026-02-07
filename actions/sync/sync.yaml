@@ -13,9 +13,9 @@ action:
       description: Allow override committed version by current build value
       type: boolean
       default: false
-    - name: playbook-filter
-      title: Filter resources by playbook usage
-      description: Parse playbooks and propagate used resources only
+    - name: chassis
+      title: Filter by chassis attachments
+      description: Only sync components attached to chassis
       type: boolean
       default: true
     - name: hide-progress

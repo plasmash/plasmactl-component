@@ -8,7 +8,7 @@ import (
 
 const roles = "roles"
 
-// FilesCrawler is a type that represents a crawler for resources in a given directory.
+// FilesCrawler is a type that represents a crawler for components in a given directory.
 type FilesCrawler struct {
 	rootDir string
 }
@@ -66,9 +66,9 @@ func (cr *FilesCrawler) FindVarsFiles(platform string) (map[string][]string, err
 	return files, err
 }
 
-// FindResourcesFiles return list of resources files in platform.
+// FindComponentsFiles return list of components files in platform.
 // If platform is empty, search across all.
-func (cr *FilesCrawler) FindResourcesFiles(platform string) (map[string][]string, error) {
+func (cr *FilesCrawler) FindComponentsFiles(platform string) (map[string][]string, error) {
 	partsCount := 4
 	platformPart := 0
 	rolePart := 2

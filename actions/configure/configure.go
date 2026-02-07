@@ -28,7 +28,7 @@ type Configure struct {
 	Generate bool
 
 	// Scope
-	At string // chassis section for override, empty for component defaults
+	At string // chassis path for override, empty for component defaults
 
 	// Modifiers
 	Vault      bool
@@ -251,7 +251,7 @@ func (c *Configure) resolveConfigDir() (string, error) {
 		return "", fmt.Errorf("component defaults directory not found")
 	}
 
-	// Chassis-scoped override: src/{layer}/cfg/{section}/
+	// Chassis-scoped override: src/{layer}/cfg/{chassisPath}/
 	return resolveChassisConfigDir(c.At)
 }
 
@@ -265,10 +265,10 @@ func (c *Configure) createConfigDir() (string, error) {
 		return configDir, nil
 	}
 
-	// Chassis-scoped: src/{layer}/cfg/{section}/
+	// Chassis-scoped: src/{layer}/cfg/{chassisPath}/
 	parts := strings.Split(c.At, ".")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid chassis section %q (expected format: platform.{layer}.{...})", c.At)
+		return "", fmt.Errorf("invalid chassis path %q (expected format: platform.{layer}.{...})", c.At)
 	}
 	layer := parts[1]
 	configDir := filepath.Join("src", layer, "cfg", c.At)
@@ -278,22 +278,22 @@ func (c *Configure) createConfigDir() (string, error) {
 	return configDir, nil
 }
 
-// resolveChassisConfigDir finds the configuration directory for a chassis section
-func resolveChassisConfigDir(chassis string) (string, error) {
-	if chassis == "" {
-		return "", fmt.Errorf("chassis section is required")
+// resolveChassisConfigDir finds the configuration directory for a chassis path
+func resolveChassisConfigDir(chassisPath string) (string, error) {
+	if chassisPath == "" {
+		return "", fmt.Errorf("chassis path is required")
 	}
 
-	// Parse chassis name to extract layer
+	// Parse chassis path to extract layer
 	// Example: platform.foundation.cluster -> foundation
-	parts := strings.Split(chassis, ".")
+	parts := strings.Split(chassisPath, ".")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid chassis section %q (expected format: platform.{layer}.{...})", chassis)
+		return "", fmt.Errorf("invalid chassis path %q (expected format: platform.{layer}.{...})", chassisPath)
 	}
 
 	layer := parts[1] // e.g., "foundation", "integration", "cognition"
 
-	configDir := filepath.Join("src", layer, "cfg", chassis)
+	configDir := filepath.Join("src", layer, "cfg", chassisPath)
 	if _, err := os.Stat(configDir); err == nil {
 		return configDir, nil
 	}

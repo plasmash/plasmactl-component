@@ -10,12 +10,16 @@ import (
 	"github.com/launchrctl/keyring"
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
+	"github.com/plasmash/plasmactl-model/pkg/model"
 
 	"github.com/plasmash/plasmactl-component/actions/attach"
 	"github.com/plasmash/plasmactl-component/actions/bump"
 	"github.com/plasmash/plasmactl-component/actions/configure"
 	"github.com/plasmash/plasmactl-component/actions/depend"
 	"github.com/plasmash/plasmactl-component/actions/detach"
+	"github.com/plasmash/plasmactl-component/actions/list"
+	"github.com/plasmash/plasmactl-component/actions/query"
+	"github.com/plasmash/plasmactl-component/actions/show"
 	"github.com/plasmash/plasmactl-component/actions/sync"
 )
 
@@ -71,7 +75,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		input := a.Input()
 		dryRun := input.Opt("dry-run").(bool)
 		allowOverride := input.Opt("allow-override").(bool)
-		filterByResourceUsage := input.Opt("playbook-filter").(bool)
+		filterByComponentUsage := input.Opt("chassis").(bool)
 		timeDepth := input.Opt("time-depth").(string)
 		vaultpass := input.Opt("vault-pass").(string)
 
@@ -86,11 +90,11 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			Streams: streams,
 
 			DomainDir:   ".",
-			BuildDir:    ".plasma/package/compose/merged",
-			PackagesDir: ".plasma/package/compose/packages",
+			BuildDir:    model.MergedSrcDir,
+			PackagesDir: model.PackagesDir,
 
 			DryRun:                dryRun,
-			FilterByResourceUsage: filterByResourceUsage,
+			FilterByComponentUsage: filterByComponentUsage,
 			TimeDepth:             timeDepth,
 			AllowOverride:         allowOverride,
 			VaultPass:             vaultpass,
@@ -118,12 +122,14 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 				term.Warning().Printfln("%s doesn't exist, fallback to current dir", source)
 				source = "."
 			} else {
-				term.Info().Printfln("Selected source is %s", source)
+				log.Debug("selected source", "path", source)
 			}
 		}
 
 		showPaths := input.Opt("path").(bool)
 		showTree := input.Opt("tree").(bool)
+		showReverse := input.Opt("reverse").(bool)
+		showBuild := input.Opt("build").(bool)
 		depth := int8(input.Opt("depth").(int)) //nolint:gosec
 		if depth == 0 {
 			return fmt.Errorf("depth value should not be zero")
@@ -136,7 +142,9 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			Source:     source,
 			Path:       showPaths,
 			Tree:       showTree,
+			Reverse:    showReverse,
 			Depth:      depth,
+			Build:      showBuild,
 		}
 		depend.SetLogger(log)
 		depend.SetTerm(term)
@@ -215,7 +223,64 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		return detach.Execute()
 	}))
 
-	return []*action.Action{ba, sa, da, ca, aa, dta}, nil
+	// component:query action
+	actionQueryYaml, _ := actionYamlFS.ReadFile("actions/query/query.yaml")
+	qa := action.NewFromYAML("component:query", actionQueryYaml)
+	qa.SetRuntime(action.NewFnRuntimeWithResult(func(_ context.Context, a *action.Action) (any, error) {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		q := &query.Query{
+			Identifier: input.Arg("identifier").(string),
+			Kind:       input.Opt("kind").(string),
+		}
+		q.SetLogger(log)
+		q.SetTerm(term)
+		err := q.Execute()
+		return q.Result(), err
+	}))
+
+	// component:list action
+	actionListYaml, _ := actionYamlFS.ReadFile("actions/list/list.yaml")
+	la := action.NewFromYAML("component:list", actionListYaml)
+	la.SetRuntime(action.NewFnRuntimeWithResult(func(_ context.Context, a *action.Action) (any, error) {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		l := &list.List{
+			Tree:    input.Opt("tree").(bool),
+			Kind:    input.Opt("kind").(string),
+			All:     input.Opt("all").(bool),
+			Orphans: input.Opt("orphans").(bool),
+		}
+		l.SetLogger(log)
+		l.SetTerm(term)
+		err := l.Execute()
+		return l.Result(), err
+	}))
+
+	// component:show action
+	actionShowYaml, _ := actionYamlFS.ReadFile("actions/show/show.yaml")
+	sha := action.NewFromYAML("component:show", actionShowYaml)
+	sha.SetRuntime(action.NewFnRuntimeWithResult(func(_ context.Context, a *action.Action) (any, error) {
+		log, _, _, term := getLogger(a)
+		input := a.Input()
+
+		comp := ""
+		if v := input.Arg("component"); v != nil {
+			comp = v.(string)
+		}
+
+		sh := &show.Show{
+			Component: comp,
+		}
+		sh.SetLogger(log)
+		sh.SetTerm(term)
+		err := sh.Execute()
+		return sh.Result(), err
+	}))
+
+	return []*action.Action{ba, sa, da, ca, aa, dta, qa, la, sha}, nil
 }
 
 func getLogger(a *action.Action) (*launchr.Logger, launchr.LogLevel, launchr.Streams, *launchr.Terminal) {

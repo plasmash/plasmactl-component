@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
 	"github.com/plasmash/plasmactl-component/internal/sync"
+	"github.com/plasmash/plasmactl-platform/pkg/graph"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,10 +23,12 @@ type Depend struct {
 	Operations []string
 
 	// Show options
-	Source string
-	Path   bool // show paths instead of MRNs
-	Tree   bool // show tree-like output
-	Depth  int8 // recursion depth limit
+	Source  string
+	Path    bool // show paths instead of MRNs
+	Tree    bool // show tree-like output
+	Reverse bool // show reverse dependencies (requiredby)
+	Depth   int8 // recursion depth limit
+	Build   bool // include build dependencies (from main.yaml)
 }
 
 // DependOp represents a parsed dependency operation
@@ -43,62 +45,83 @@ func (d *Depend) Execute() error {
 		return d.executeShow()
 	}
 
-	// Parse and execute operations
+	// Parse and execute operations (always filesystem-based)
 	return d.executeOperations()
 }
 
-// executeShow displays dependencies (original behavior)
+// depEdgeTypes returns dependency edge types based on the Build flag.
+func (d *Depend) depEdgeTypes() []string {
+	if d.Build {
+		return graph.ComponentDependencyEdgeTypes()
+	}
+	// Exclude "builds" from dependency types
+	all := graph.ComponentDependencyEdgeTypes()
+	result := make([]string, 0, len(all)-1)
+	for _, t := range all {
+		if t != "builds" {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// executeShow displays dependencies using the platform graph.
 func (d *Depend) executeShow() error {
-	searchMrn := d.Target
-	_, errConvert := sync.ConvertMRNtoPath(searchMrn)
-
-	if errConvert != nil {
-		r := sync.BuildResourceFromPath(d.Target, d.Source)
-		if r == nil {
-			return fmt.Errorf("not valid resource %q", d.Target)
-		}
-
-		searchMrn = r.GetName()
-	}
-
-	var header string
-	if d.Path {
-		header, _ = sync.ConvertMRNtoPath(searchMrn)
-	} else {
-		header = searchMrn
-	}
-
-	inv, err := sync.NewInventory(d.Source, d.Log())
+	g, err := graph.Load()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load graph: %w", err)
 	}
 
-	parents := inv.GetRequiredByResources(searchMrn, d.Depth)
-	if len(parents) > 0 {
-		d.Term().Info().Println("Dependent resources:")
-		if d.Tree {
-			var parentsTree forwardTree = inv.GetRequiredByMap()
-			parentsTree.print(d.Term(), header, "", 1, d.Depth, searchMrn, d.Path)
-		} else {
-			d.printList(parents, d.Path)
+	// Resolve target to MRN
+	searchMrn := d.Target
+	if g.Node(searchMrn) == nil {
+		// Not found directly — try converting from path
+		c := sync.BuildComponentFromPath(d.Target, d.Source)
+		if c == nil {
+			return fmt.Errorf("not valid component %q", d.Target)
+		}
+		searchMrn = c.GetName()
+		if g.Node(searchMrn) == nil {
+			return fmt.Errorf("component %q not found in graph", searchMrn)
 		}
 	}
 
-	children := inv.GetDependsOnResources(searchMrn, d.Depth)
-	if len(children) > 0 {
-		d.Term().Info().Println("Dependencies:")
-		if d.Tree {
-			var childrenTree forwardTree = inv.GetDependsOnMap()
-			childrenTree.print(d.Term(), header, "", 1, d.Depth, searchMrn, d.Path)
-		} else {
-			d.printList(children, d.Path)
-		}
+	edgeTypes := d.depEdgeTypes()
+	depth := int(d.Depth)
+
+	// Get parents (what depends on target) and children (what target depends on)
+	ancestors := g.Ancestors(searchMrn, depth, edgeTypes...)
+	descendants := g.Descendants(searchMrn, depth, edgeTypes...)
+
+	parents := make(map[string]bool, len(ancestors))
+	for _, n := range ancestors {
+		parents[n.Name] = true
+	}
+	children := make(map[string]bool, len(descendants))
+	for _, n := range descendants {
+		children[n.Name] = true
 	}
 
 	if len(parents) == 0 && len(children) == 0 {
 		d.Term().Info().Println("No dependencies found")
 		d.Term().Println()
 		d.Term().Info().Println("Tip: DEP (add), DEP- (remove), OLD/NEW (replace)")
+		return nil
+	}
+
+	if d.Tree {
+		if d.Reverse {
+			d.printTree(searchMrn, g, edgeTypes, true, d.Path, d.Depth)
+		} else {
+			d.printTree(searchMrn, g, edgeTypes, false, d.Path, d.Depth)
+		}
+	} else {
+		if len(parents) > 0 {
+			d.printList(parents, d.Path, "requiredby")
+		}
+		if len(children) > 0 {
+			d.printList(children, d.Path, "requires")
+		}
 	}
 
 	return nil
@@ -233,7 +256,7 @@ func (d *Depend) resolveTargetPath() (string, error) {
 	}
 
 	// Try converting from MRN
-	path, err := sync.ConvertMRNtoPath(d.Target)
+	path, err := sync.ConvertNameToPath(d.Target)
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve target %q: %w", d.Target, err)
 	}
@@ -248,14 +271,14 @@ func (d *Depend) resolveTargetPath() (string, error) {
 // resolveDependencyMRN converts dependency to MRN format
 func (d *Depend) resolveDependencyMRN(dep string) (string, error) {
 	// Check if it's already an MRN
-	if _, err := sync.ConvertMRNtoPath(dep); err == nil {
+	if _, err := sync.ConvertNameToPath(dep); err == nil {
 		return dep, nil
 	}
 
-	// Try to build resource from path
-	r := sync.BuildResourceFromPath(dep, ".")
-	if r != nil {
-		return r.GetName(), nil
+	// Try to build component from path
+	c := sync.BuildComponentFromPath(dep, ".")
+	if c != nil {
+		return c.GetName(), nil
 	}
 
 	return "", fmt.Errorf("cannot resolve dependency %q to MRN", dep)
@@ -306,7 +329,7 @@ func (d *Depend) saveDependencies(path string, deps []string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func (d *Depend) printList(items map[string]bool, toPath bool) {
+func (d *Depend) printList(items map[string]bool, toPath bool, prefix string) {
 	keys := make([]string, 0, len(items))
 	for k := range items {
 		keys = append(keys, k)
@@ -316,50 +339,66 @@ func (d *Depend) printList(items map[string]bool, toPath bool) {
 	for _, item := range keys {
 		res := item
 		if toPath {
-			res, _ = sync.ConvertMRNtoPath(res)
+			res, _ = sync.ConvertNameToPath(res)
 		}
 
-		d.Term().Print(res + "\n")
+		d.Term().Printf("%s\t%s\n", prefix, res)
 	}
 }
 
-type forwardTree map[string]*sync.OrderedMap[bool]
-
-func (t forwardTree) print(printer *launchr.Terminal, header, indent string, depth, limit int8, parent string, toPath bool) {
-	if indent == "" {
-		printer.Printfln(header)
+// printTree prints a dependency tree querying the graph dynamically.
+func (d *Depend) printTree(target string, g *graph.PlatformGraph, edgeTypes []string, reverse bool, toPath bool, depth int8) {
+	value := target
+	if toPath {
+		value, _ = sync.ConvertNameToPath(value)
 	}
+	d.Term().Printfln(value)
 
-	if depth == limit {
+	seen := make(map[string]bool)
+	seen[target] = true
+
+	d.printTreeChildren(target, g, edgeTypes, reverse, "", toPath, 0, depth, seen)
+}
+
+// printTreeChildren recursively prints tree children querying the graph.
+func (d *Depend) printTreeChildren(current string, g *graph.PlatformGraph, edgeTypes []string, reverse bool, indent string, toPath bool, currentDepth, maxDepth int8, seen map[string]bool) {
+	if currentDepth >= maxDepth {
 		return
 	}
 
-	children, ok := t[parent]
-	if !ok {
-		return
+	var childNames []string
+	if reverse {
+		for _, e := range g.EdgesTo(current, edgeTypes...) {
+			childNames = append(childNames, e.From().Name)
+		}
+	} else {
+		for _, e := range g.EdgesFrom(current, edgeTypes...) {
+			childNames = append(childNames, e.To().Name)
+		}
 	}
 
-	keys := children.Keys()
-	sort.Strings(keys)
+	sort.Strings(childNames)
 
-	for i, node := range keys {
-		isLast := i == len(keys)-1
-		var newIndent, edge string
-
+	for i, child := range childNames {
+		isLast := i == len(childNames)-1
+		edge := "├── "
+		newIndent := indent + "│   "
 		if isLast {
-			newIndent = indent + "    "
 			edge = "└── "
-		} else {
-			newIndent = indent + "│   "
-			edge = "├── "
+			newIndent = indent + "    "
 		}
 
-		value := node
+		value := child
 		if toPath {
-			value, _ = sync.ConvertMRNtoPath(value)
+			value, _ = sync.ConvertNameToPath(value)
 		}
 
-		printer.Printfln(indent + edge + value)
-		t.print(printer, "", newIndent, depth+1, limit, node, toPath)
+		if seen[child] {
+			d.Term().Printfln(indent + edge + value + " [deduped]")
+		} else {
+			seen[child] = true
+			d.Term().Printfln(indent + edge + value)
+			d.printTreeChildren(child, g, edgeTypes, reverse, newIndent, toPath, currentDepth+1, maxDepth, seen)
+		}
 	}
 }

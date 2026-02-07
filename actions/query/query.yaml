@@ -1,0 +1,40 @@
+runtime: plugin
+action:
+  title: Query Components
+  description: "Query components by chassis or node"
+  arguments:
+    - name: identifier
+      title: Identifier
+      description: Chassis section or node hostname to query
+      required: true
+  options:
+    - name: kind
+      shorthand: k
+      title: Kind
+      description: Identifier kind to skip auto-detection (chassis, node)
+      type: string
+      default: ""
+  result:
+    type: object
+    description: Query result containing matching components
+    properties:
+      components:
+        type: array
+        description: List of components matching the query
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Component name
+            version:
+              type: string
+              description: Component version
+            kind:
+              type: string
+              description: Component kind (applications, services, softwares, etc)
+            chassis:
+              type: string
+              description: Chassis path where component is attached
+    required:
+      - components

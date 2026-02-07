@@ -24,76 +24,76 @@ type TimelineItem interface {
 	Print()
 }
 
-// TimelineResourcesItem implements TimelineItem interface and stores Resource map.
-type TimelineResourcesItem struct {
-	version   string
-	commit    string
-	resources *OrderedMap[*Resource]
-	date      time.Time
-	printer   *launchr.Terminal
+// TimelineComponentsItem implements TimelineItem interface and stores Component map.
+type TimelineComponentsItem struct {
+	version    string
+	commit     string
+	components *OrderedMap[*Component]
+	date       time.Time
+	printer    *launchr.Terminal
 }
 
-// NewTimelineResourcesItem returns new instance of [TimelineResourcesItem]
-func NewTimelineResourcesItem(version, commit string, date time.Time, printer *launchr.Terminal) *TimelineResourcesItem {
-	return &TimelineResourcesItem{
-		version:   version,
-		commit:    commit,
-		date:      date,
-		resources: NewOrderedMap[*Resource](),
-		printer:   printer,
+// NewTimelineComponentsItem returns new instance of [TimelineComponentsItem]
+func NewTimelineComponentsItem(version, commit string, date time.Time, printer *launchr.Terminal) *TimelineComponentsItem {
+	return &TimelineComponentsItem{
+		version:    version,
+		commit:     commit,
+		date:       date,
+		components: NewOrderedMap[*Component](),
+		printer:    printer,
 	}
 }
 
 // GetCommit returns timeline item commit.
-func (i *TimelineResourcesItem) GetCommit() string {
+func (i *TimelineComponentsItem) GetCommit() string {
 	return i.commit
 }
 
 // GetVersion returns timeline item version to propagate.
-func (i *TimelineResourcesItem) GetVersion() string {
+func (i *TimelineComponentsItem) GetVersion() string {
 	return i.version
 }
 
 // GetDate returns timeline item date.
-func (i *TimelineResourcesItem) GetDate() time.Time {
+func (i *TimelineComponentsItem) GetDate() time.Time {
 	return i.date
 }
 
-// AddResource pushes [Resource] into timeline item.
-func (i *TimelineResourcesItem) AddResource(r *Resource) {
-	i.resources.Set(r.GetName(), r)
+// AddComponent pushes [Component] into timeline item.
+func (i *TimelineComponentsItem) AddComponent(c *Component) {
+	i.components.Set(c.GetName(), c)
 }
 
-// GetResources returns [Resource] map of timeline.
-func (i *TimelineResourcesItem) GetResources() *OrderedMap[*Resource] {
-	return i.resources
+// GetComponents returns [Component] map of timeline.
+func (i *TimelineComponentsItem) GetComponents() *OrderedMap[*Component] {
+	return i.components
 }
 
-// Merge allows to merge other timeline item resources.
-func (i *TimelineResourcesItem) Merge(item TimelineItem) {
-	if r2, ok := item.(*TimelineResourcesItem); ok {
-		for _, key := range r2.resources.Keys() {
-			_, exists := i.resources.Get(key)
+// Merge allows to merge other timeline item components.
+func (i *TimelineComponentsItem) Merge(item TimelineItem) {
+	if c2, ok := item.(*TimelineComponentsItem); ok {
+		for _, key := range c2.components.Keys() {
+			_, exists := i.components.Get(key)
 			if exists {
 				continue
 			}
 
-			itemRes, exists := r2.resources.Get(key)
+			itemComp, exists := c2.components.Get(key)
 			if !exists {
 				continue
 			}
 
-			i.resources.Set(key, itemRes)
+			i.components.Set(key, itemComp)
 		}
 	}
 }
 
 // Print outputs common item info.
-func (i *TimelineResourcesItem) Print() {
+func (i *TimelineComponentsItem) Print() {
 	i.printer.Printfln("Version: %s, Date: %s, Commit: %s", i.GetVersion(), i.GetDate(), i.GetCommit())
-	i.printer.Printf("Resource List:\n")
-	for _, key := range i.resources.Keys() {
-		v, ok := i.resources.Get(key)
+	i.printer.Printf("Component List:\n")
+	for _, key := range i.components.Keys() {
+		v, ok := i.components.Get(key)
 		if !ok {
 			continue
 		}
@@ -186,8 +186,8 @@ func AddToTimeline(list []TimelineItem, item TimelineItem) []TimelineItem {
 			if _, ok := item.(*TimelineVariablesItem); !ok {
 				continue
 			}
-		case *TimelineResourcesItem:
-			if _, ok := item.(*TimelineResourcesItem); !ok {
+		case *TimelineComponentsItem:
+			if _, ok := item.(*TimelineComponentsItem); !ok {
 				continue
 			}
 		default:
@@ -224,29 +224,29 @@ func SortTimeline(list []TimelineItem, order string) {
 			case *TimelineVariablesItem:
 				// Both are Variables, maintain current order
 				return false
-			case *TimelineResourcesItem:
-				// Variables come before Resources if asc, after if desc
+			case *TimelineComponentsItem:
+				// Variables come before Components if asc, after if desc
 				return order == SortAsc
 			default:
 				// Variables come before unknown types
 				return true
 			}
-		case *TimelineResourcesItem:
+		case *TimelineComponentsItem:
 			switch list[j].(type) {
 			case *TimelineVariablesItem:
-				// Resources come after Variables if asc, before if desc
+				// Components come after Variables if asc, before if desc
 				return order == SortDesc
-			case *TimelineResourcesItem:
-				// Both are Resources, maintain current order
+			case *TimelineComponentsItem:
+				// Both are Components, maintain current order
 				return false
 			default:
-				// Resources come before unknown types
+				// Components come before unknown types
 				return true
 			}
 		default:
 			switch list[j].(type) {
-			case *TimelineVariablesItem, *TimelineResourcesItem:
-				// Unknown types come after Variables and Resources
+			case *TimelineVariablesItem, *TimelineComponentsItem:
+				// Unknown types come after Variables and Components
 				return false
 			default:
 				// Maintain current order for unknown types

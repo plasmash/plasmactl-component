@@ -50,24 +50,24 @@ func (cs Components) ByLayer(layer string) Components {
 	return result
 }
 
-// Attachments returns a map of component name to chassis sections.
+// Attachments returns a map of component name to chassis paths.
 // Unlike node allocations, component attachments don't use distribution -
 // they are explicit bindings defined in playbooks.
 //
 // The chassis parameter is provided for API consistency and future use
-// (e.g., validating sections exist, computing inherited attachments).
+// (e.g., validating chassis paths exist, computing inherited attachments).
 //
-// Returns: component_name → []sections
+// Returns: component_name → []chassisPaths
 func (cs Components) Attachments(_ *chassis.Chassis) map[string][]string {
 	result := make(map[string][]string)
 
 	for _, c := range cs {
-		if c.Section != "" {
-			result[c.Name] = appendUnique(result[c.Name], c.Section)
+		if c.Chassis != "" {
+			result[c.Name] = appendUnique(result[c.Name], c.Chassis)
 		}
 	}
 
-	// Sort sections for consistent output
+	// Sort chassis paths for consistent output
 	for name := range result {
 		sort.Strings(result[name])
 	}
@@ -75,11 +75,11 @@ func (cs Components) Attachments(_ *chassis.Chassis) map[string][]string {
 	return result
 }
 
-// ForSection returns components attached to a section or its children.
-func (cs Components) ForSection(section string) Components {
+// ForChassis returns components attached to a chassis path or its children.
+func (cs Components) ForChassis(chassisPath string) Components {
 	var result Components
 	for _, c := range cs {
-		if c.Section == section || chassis.IsDescendantOf(c.Section, section) {
+		if c.Chassis == chassisPath || chassis.IsDescendantOf(c.Chassis, chassisPath) {
 			result = append(result, c)
 		}
 	}

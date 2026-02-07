@@ -1,0 +1,35 @@
+runtime: plugin
+action:
+  title: Show Component
+  description: "Show component overview or details for a specific component"
+  arguments:
+    - name: component
+      title: Component
+      description: Component name (optional, shows overview if omitted)
+  result:
+    type: object
+    properties:
+      component:
+        type: object
+        description: Component details
+        properties:
+          name:
+            type: string
+            description: Full component name
+          layer:
+            type: string
+            description: Component layer
+          kind:
+            type: string
+            description: Component kind
+          package:
+            type: string
+            description: Package containing the component
+          attachment:
+            type: string
+            description: Chassis section attachment
+          allocations:
+            type: array
+            description: Nodes allocated to serve this component
+            items:
+              type: string

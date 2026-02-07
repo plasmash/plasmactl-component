@@ -14,7 +14,7 @@ var unversionedFiles = map[string]struct{}{
 	"README.svg": {},
 }
 
-// Bump is an action representing versions update of committed resources.
+// Bump is an action representing versions update of committed components.
 type Bump struct {
 	action.WithLogger
 	action.WithTerm
@@ -30,9 +30,9 @@ func (b *Bump) printMemo() {
 	}
 }
 
-// Execute the bump action to update committed resources.
+// Execute the bump action to update committed components.
 func (b *Bump) Execute() error {
-	b.Term().Info().Println("Bumping updated resources...")
+	b.Term().Info().Println("Bumping updated components...")
 	b.printMemo()
 
 	bumper, err := repository.NewBumper()
@@ -50,15 +50,15 @@ func (b *Bump) Execute() error {
 		return err
 	}
 
-	resources := b.collectResources(commits)
-	if len(resources) == 0 {
-		b.Term().Info().Println("No resource to update")
+	components := b.collectComponents(commits)
+	if len(components) == 0 {
+		b.Term().Info().Println("No component to update")
 		return nil
 	}
 
-	err = b.updateResources(resources)
+	err = b.updateComponents(components)
 	if err != nil {
-		b.Log().Error("There is an error during resources update")
+		b.Log().Error("There is an error during components update")
 		return err
 	}
 
@@ -69,68 +69,68 @@ func (b *Bump) Execute() error {
 	return bumper.Commit()
 }
 
-func (b *Bump) getResource(path string) *sync.Resource {
+func (b *Bump) getComponent(path string) *sync.Component {
 	if !isVersionableFile(path) {
 		return nil
 	}
 
-	platform, kind, role, err := sync.ProcessResourcePath(path)
+	platform, kind, role, err := sync.ProcessComponentPath(path)
 	if err != nil || (platform == "" || kind == "" || role == "") {
 		return nil
 	}
 
 	// skip actions dir from triggering bump.
-	resourceActionsDir := filepath.Join(platform, kind, "roles", role, "actions")
-	if strings.Contains(path, resourceActionsDir) {
+	componentActionsDir := filepath.Join(platform, kind, "roles", role, "actions")
+	if strings.Contains(path, componentActionsDir) {
 		return nil
 	}
 
-	resource := sync.NewResource(sync.PrepareMachineResourceName(platform, kind, role), ".")
-	if !resource.IsValidResource() {
+	component := sync.NewComponent(sync.PrepareComponentName(platform, kind, role), ".")
+	if !component.IsValidComponent() {
 		return nil
 	}
 
-	return resource
+	return component
 }
 
-func (b *Bump) collectResources(commits []*repository.Commit) map[string]map[string]*sync.Resource {
+func (b *Bump) collectComponents(commits []*repository.Commit) map[string]map[string]*sync.Component {
 	uniqueVersion := map[string]string{}
 
-	resources := make(map[string]map[string]*sync.Resource)
+	components := make(map[string]map[string]*sync.Component)
 	for _, c := range commits {
 		hash := c.Hash[:13]
 		for _, path := range c.Files {
-			resource := b.getResource(path)
-			if resource == nil {
+			component := b.getComponent(path)
+			if component == nil {
 				continue
 			}
 
-			if _, ok := resources[hash]; !ok {
-				resources[hash] = make(map[string]*sync.Resource)
+			if _, ok := components[hash]; !ok {
+				components[hash] = make(map[string]*sync.Component)
 			}
 
-			if _, ok := uniqueVersion[resource.GetName()]; ok {
+			if _, ok := uniqueVersion[component.GetName()]; ok {
 				continue
 			}
 
-			b.Term().Printfln("Processing resource %s", resource.GetName())
-			resources[hash][resource.GetName()] = resource
-			uniqueVersion[resource.GetName()] = hash
+			b.Term().Printfln("Processing component %s", component.GetName())
+			components[hash][component.GetName()] = component
+			uniqueVersion[component.GetName()] = hash
 		}
 	}
 
-	return resources
+	return components
 }
 
-func (b *Bump) updateResources(hashResourcesMap map[string]map[string]*sync.Resource) error {
-	if len(hashResourcesMap) == 0 {
+func (b *Bump) updateComponents(hashComponentsMap map[string]map[string]*sync.Component) error {
+	if len(hashComponentsMap) == 0 {
 		return nil
 	}
 
 	b.Term().Printf("Updating versions:\n")
-	for version, resources := range hashResourcesMap {
-		for mrn, r := range resources {
-			currentVersion, debug, err := r.GetVersion()
+	for version, components := range hashComponentsMap {
+		for name, c := range components {
+			currentVersion, debug, err := c.GetVersion()
 			for _, d := range debug {
 				b.Log().Debug("error", "message", d)
 			}
@@ -138,12 +138,12 @@ func (b *Bump) updateResources(hashResourcesMap map[string]map[string]*sync.Reso
 				return err
 			}
 
-			b.Term().Printfln("- %s from %s to %s", mrn, currentVersion, version)
+			b.Term().Printfln("- %s from %s to %s", name, currentVersion, version)
 			if b.DryRun {
 				continue
 			}
 
-			debug, err = r.UpdateVersion(version)
+			debug, err = c.UpdateVersion(version)
 			for _, d := range debug {
 				b.Log().Debug("error", "message", d)
 			}

@@ -9,11 +9,56 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Role represents an Ansible role entry that can be either a simple string
+// or an extended map with role name and vars
+type Role struct {
+	Name string                 // Role name (MRN)
+	Vars map[string]interface{} // Optional vars for extended format
+}
+
+// UnmarshalYAML handles both string and map role formats
+func (r *Role) UnmarshalYAML(node *yaml.Node) error {
+	// Try simple string format first
+	if node.Kind == yaml.ScalarNode {
+		r.Name = node.Value
+		return nil
+	}
+
+	// Handle map format: {role: name, vars: {...}}
+	if node.Kind == yaml.MappingNode {
+		var roleMap struct {
+			Role string                 `yaml:"role"`
+			Vars map[string]interface{} `yaml:"vars"`
+		}
+		if err := node.Decode(&roleMap); err != nil {
+			return err
+		}
+		r.Name = roleMap.Role
+		r.Vars = roleMap.Vars
+		return nil
+	}
+
+	return fmt.Errorf("invalid role format at line %d", node.Line)
+}
+
+// MarshalYAML outputs simple format if no vars, extended format otherwise
+func (r Role) MarshalYAML() (interface{}, error) {
+	if len(r.Vars) == 0 {
+		return r.Name, nil
+	}
+	return map[string]interface{}{
+		"role": r.Name,
+		"vars": r.Vars,
+	}, nil
+}
+
 // Play represents a play in a layer playbook
 type Play struct {
-	Hosts          string   `yaml:"hosts"`
-	AnyErrorsFatal bool     `yaml:"any_errors_fatal,omitempty"`
-	Roles          []string `yaml:"roles"`
+	Hosts          string `yaml:"hosts"`
+	Serial         int    `yaml:"serial,omitempty"`
+	AnyErrorsFatal bool   `yaml:"any_errors_fatal,omitempty"`
+	Roles          []Role `yaml:"roles"`
+	Tags           []string `yaml:"tags,omitempty"`
 }
 
 // ExtractLayer gets the layer name from an MRN
@@ -75,11 +120,11 @@ func AddRole(plays []Play, component, chassis string) ([]Play, bool) {
 	for i, play := range plays {
 		if play.Hosts == chassis {
 			for _, role := range play.Roles {
-				if role == component {
+				if role.Name == component {
 					return plays, false // already attached
 				}
 			}
-			plays[i].Roles = append(plays[i].Roles, component)
+			plays[i].Roles = append(plays[i].Roles, Role{Name: component})
 			return plays, true
 		}
 	}
@@ -88,7 +133,7 @@ func AddRole(plays []Play, component, chassis string) ([]Play, bool) {
 	newPlay := Play{
 		Hosts:          chassis,
 		AnyErrorsFatal: true,
-		Roles:          []string{component},
+		Roles:          []Role{{Name: component}},
 	}
 	return append(plays, newPlay), true
 }
@@ -97,10 +142,10 @@ func AddRole(plays []Play, component, chassis string) ([]Play, bool) {
 func RemoveRole(plays []Play, component, chassis string) ([]Play, bool) {
 	for i, play := range plays {
 		if play.Hosts == chassis {
-			newRoles := make([]string, 0, len(play.Roles))
+			newRoles := make([]Role, 0, len(play.Roles))
 			found := false
 			for _, role := range play.Roles {
-				if role == component {
+				if role.Name == component {
 					found = true
 					continue
 				}

@@ -32,7 +32,7 @@ const (
 	buildHackAuthor = "override"
 )
 
-// Sync is a type representing a resources version synchronization action.
+// Sync is a type representing a components version synchronization action.
 type Sync struct {
 	action.WithLogger
 	action.WithTerm
@@ -51,12 +51,12 @@ type Sync struct {
 	timeline    []sync.TimelineItem
 
 	// options.
-	DryRun                bool
-	AllowOverride         bool
-	FilterByResourceUsage bool
-	TimeDepth             string
-	VaultPass             string
-	ShowProgress          bool
+	DryRun                 bool
+	AllowOverride          bool
+	FilterByComponentUsage bool
+	TimeDepth              string
+	VaultPass              string
+	ShowProgress           bool
 }
 
 type hashStruct struct {
@@ -129,11 +129,11 @@ func (s *Sync) propagate() error {
 		return err
 	}
 
-	if s.FilterByResourceUsage {
-		s.Log().Info("Calculating resources usage")
-		err = inv.CalculateResourcesUsage()
+	if s.FilterByComponentUsage {
+		s.Log().Info("Calculating components usage")
+		err = inv.CalculateComponentsUsage()
 		if err != nil {
-			return fmt.Errorf("calculate resources usage > %w", err)
+			return fmt.Errorf("calculate components usage > %w", err)
 		}
 	}
 
@@ -149,16 +149,16 @@ func (s *Sync) propagate() error {
 	}
 
 	if len(s.timeline) == 0 {
-		s.Term().Warning().Println("No resources were found for propagation")
+		s.Term().Warning().Println("No components were found for propagation")
 		return nil
 	}
 
-	toPropagate, resourceVersionMap, err := s.buildPropagationMap(inv, s.timeline)
+	toSync, componentVersionMap, err := s.buildPropagationMap(inv, s.timeline)
 	if err != nil {
 		return fmt.Errorf("building propagation map > %w", err)
 	}
 
-	err = s.updateResources(resourceVersionMap, toPropagate)
+	err = s.updateComponents(componentVersionMap, toSync)
 	if err != nil {
 		return fmt.Errorf("propagate > %w", err)
 	}
@@ -167,16 +167,16 @@ func (s *Sync) propagate() error {
 }
 
 func (s *Sync) buildTimeline(buildInv *sync.Inventory) error {
-	s.Log().Info("Gathering domain and packages resources")
-	resourcesMap, packagePathMap, err := s.getResourcesMaps(buildInv)
+	s.Log().Info("Gathering domain and packages components")
+	componentsMap, packagePathMap, err := s.getComponentsMaps(buildInv)
 	if err != nil {
-		return fmt.Errorf("build resource map > %w", err)
+		return fmt.Errorf("build component map > %w", err)
 	}
 
-	s.Log().Info("Populate timeline with resources")
-	err = s.populateTimelineResources(resourcesMap, packagePathMap)
+	s.Log().Info("Populate timeline with components")
+	err = s.populateTimelineComponents(componentsMap, packagePathMap)
 	if err != nil {
-		return fmt.Errorf("iteraring resources > %w", err)
+		return fmt.Errorf("iterating components > %w", err)
 	}
 
 	s.Log().Info("Populate timeline with variables")
@@ -188,8 +188,8 @@ func (s *Sync) buildTimeline(buildInv *sync.Inventory) error {
 	return nil
 }
 
-func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.OrderedMap[*sync.Resource], map[string]string, error) {
-	resourcesMap := make(map[string]*sync.OrderedMap[*sync.Resource])
+func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.OrderedMap[*sync.Component], map[string]string, error) {
+	componentsMap := make(map[string]*sync.OrderedMap[*sync.Component])
 	packagePathMap := make(map[string]string)
 
 	plasmaCompose, err := compose.Lookup(os.DirFS(s.DomainDir))
@@ -218,14 +218,14 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 	for i := 0; i < maxWorkers; i++ {
 		go func() {
 			for repo := range workChan {
-				resources, errRes := s.getResourcesMapFrom(repo["path"])
+				components, errRes := s.getComponentsMapFrom(repo["path"])
 				if errRes != nil {
 					errorChan <- errRes
 					return
 				}
 
 				mx.Lock()
-				resourcesMap[repo["package"]] = resources
+				componentsMap[repo["package"]] = components
 				mx.Unlock()
 				wg.Done()
 			}
@@ -250,45 +250,45 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 		}
 	}
 
-	// Remove unused resources from packages maps.
-	if s.FilterByResourceUsage {
-		usedResources := buildInv.GetUsedResources()
-		if len(usedResources) == 0 {
-			// Empty maps and return, as no resources are used in build.
-			resourcesMap = make(map[string]*sync.OrderedMap[*sync.Resource])
+	// Remove unused components from packages maps.
+	if s.FilterByComponentUsage {
+		usedComponents := buildInv.GetUsedComponents()
+		if len(usedComponents) == 0 {
+			// Empty maps and return, as no components are used in build.
+			componentsMap = make(map[string]*sync.OrderedMap[*sync.Component])
 			packagePathMap = make(map[string]string)
 
-			return resourcesMap, packagePathMap, nil
+			return componentsMap, packagePathMap, nil
 		}
 
-		s.Log().Info("List of used resources:")
-		var ur []string
-		for r := range usedResources {
-			ur = append(ur, r)
+		s.Log().Info("List of used components:")
+		var uc []string
+		for c := range usedComponents {
+			uc = append(uc, c)
 		}
 
-		sort.Strings(ur)
-		for _, r := range ur {
-			s.Log().Info(fmt.Sprintf("- %s", r))
+		sort.Strings(uc)
+		for _, c := range uc {
+			s.Log().Info(fmt.Sprintf("- %s", c))
 		}
 
-		s.Log().Info("List of unused resources:")
-		for p, resources := range resourcesMap {
+		s.Log().Info("List of unused components:")
+		for p, components := range componentsMap {
 			s.Log().Info(fmt.Sprintf("- Package - %s -", p))
-			for _, k := range resources.Keys() {
-				if _, ok := usedResources[k]; !ok {
+			for _, k := range components.Keys() {
+				if _, ok := usedComponents[k]; !ok {
 					s.Log().Info(fmt.Sprintf("- %s", k))
-					resources.Unset(k)
+					components.Unset(k)
 				}
 			}
 		}
 	}
 
-	buildResources := buildInv.GetResourcesMap()
-	for _, resourceName := range buildResources.Keys() {
+	buildComponents := buildInv.GetComponentsMap()
+	for _, componentName := range buildComponents.Keys() {
 		conflicts := make(map[string]string)
-		for name, resources := range resourcesMap {
-			if _, ok := resources.Get(resourceName); ok {
+		for name, components := range componentsMap {
+			if _, ok := components.Get(componentName); ok {
 				conflicts[name] = ""
 			}
 		}
@@ -297,8 +297,8 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 			continue
 		}
 
-		buildResourceEntity := sync.NewResource(resourceName, s.BuildDir)
-		buildVersion, debug, err := buildResourceEntity.GetVersion()
+		buildComponentEntity := sync.NewComponent(componentName, s.BuildDir)
+		buildVersion, debug, err := buildComponentEntity.GetVersion()
 		for _, d := range debug {
 			s.Log().Debug("error", "message", d)
 		}
@@ -308,7 +308,7 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 
 		var sameVersionNamespaces []string
 		for conflictingNamespace := range conflicts {
-			conflictEntity := sync.NewResource(resourceName, packagePathMap[conflictingNamespace])
+			conflictEntity := sync.NewComponent(componentName, packagePathMap[conflictingNamespace])
 
 			baseVersion, _, debug, err := conflictEntity.GetBaseVersion()
 			for _, d := range debug {
@@ -320,19 +320,19 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 			}
 
 			if baseVersion != buildVersion {
-				s.Log().Debug("removing resource from namespace because of composition strategy",
-					"resource", resourceName, "version", baseVersion, "buildVersion", buildVersion, "namespace", conflictingNamespace)
-				resourcesMap[conflictingNamespace].Unset(resourceName)
+				s.Log().Debug("removing component from namespace because of composition strategy",
+					"component", componentName, "version", baseVersion, "buildVersion", buildVersion, "namespace", conflictingNamespace)
+				componentsMap[conflictingNamespace].Unset(componentName)
 			} else {
 				sameVersionNamespaces = append(sameVersionNamespaces, conflictingNamespace)
 			}
 		}
 
 		if len(sameVersionNamespaces) > 1 {
-			s.Log().Debug("resolving additional strategies conflict for resource", "resource", resourceName)
+			s.Log().Debug("resolving additional strategies conflict for component", "component", componentName)
 			var highest string
 			for i := len(priorityOrder) - 1; i >= 0; i-- {
-				if _, ok := resourcesMap[priorityOrder[i]]; ok {
+				if _, ok := componentsMap[priorityOrder[i]]; ok {
 					highest = priorityOrder[i]
 					break
 				}
@@ -340,27 +340,27 @@ func (s *Sync) getResourcesMaps(buildInv *sync.Inventory) (map[string]*sync.Orde
 
 			for i := len(priorityOrder) - 1; i >= 0; i-- {
 				if priorityOrder[i] != highest {
-					if _, ok := resourcesMap[priorityOrder[i]]; ok {
-						resourcesMap[priorityOrder[i]].Unset(resourceName)
+					if _, ok := componentsMap[priorityOrder[i]]; ok {
+						componentsMap[priorityOrder[i]].Unset(componentName)
 					}
 				}
 			}
 		}
 	}
 
-	return resourcesMap, packagePathMap, nil
+	return componentsMap, packagePathMap, nil
 }
 
-func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.TimelineItem) (*sync.OrderedMap[*sync.Resource], map[string]string, error) {
-	resourceVersionMap := make(map[string]string)
-	toPropagate := sync.NewOrderedMap[*sync.Resource]()
-	resourcesMap := buildInv.GetResourcesMap()
+func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.TimelineItem) (*sync.OrderedMap[*sync.Component], map[string]string, error) {
+	componentVersionMap := make(map[string]string)
+	toSync := sync.NewOrderedMap[*sync.Component]()
+	componentsMap := buildInv.GetComponentsMap()
 	processed := make(map[string]bool)
 	sync.SortTimeline(timeline, sync.SortDesc)
 
-	usedResources := make(map[string]bool)
-	if s.FilterByResourceUsage {
-		usedResources = buildInv.GetUsedResources()
+	usedComponents := make(map[string]bool)
+	if s.FilterByComponentUsage {
+		usedComponents = buildInv.GetUsedComponents()
 	}
 
 	s.Log().Info("Iterating timeline")
@@ -368,20 +368,20 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 		dependenciesLog := sync.NewOrderedMap[bool]()
 
 		switch i := item.(type) {
-		case *sync.TimelineResourcesItem:
-			resources := i.GetResources()
-			resources.SortKeysAlphabetically()
+		case *sync.TimelineComponentsItem:
+			components := i.GetComponents()
+			components.SortKeysAlphabetically()
 
 			var toProcess []string
-			for _, key := range resources.Keys() {
-				// Skip resource if it was processed by previous timeline item or previous resource (via deps).
+			for _, key := range components.Keys() {
+				// Skip component if it was processed by previous timeline item or previous component (via deps).
 				if processed[key] {
 					continue
 				}
 
-				r, _ := resources.Get(key)
+				c, _ := components.Get(key)
 
-				if !sync.IsUpdatableKind(r.GetKind()) {
+				if !sync.IsUpdatableKind(c.GetKind()) {
 					s.Log().Warn(fmt.Sprintf("%s is not allowed to propagate", key))
 					continue
 				}
@@ -394,60 +394,60 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 			}
 
 			for _, key := range toProcess {
-				r, ok := resources.Get(key)
+				c, ok := components.Get(key)
 				if !ok {
 					return nil, nil, fmt.Errorf("unknown key %s detected during timeline iteration", key)
 				}
 
 				processed[key] = true
 
-				dependentResources := buildInv.GetRequiredByResources(r.GetName(), -1)
-				if s.FilterByResourceUsage {
-					for dr := range dependentResources {
-						if _, okU := usedResources[dr]; !okU {
-							delete(dependentResources, dr)
+				dependentComponents := buildInv.GetRequiredByComponents(c.GetName(), -1)
+				if s.FilterByComponentUsage {
+					for dc := range dependentComponents {
+						if _, okU := usedComponents[dc]; !okU {
+							delete(dependentComponents, dc)
 						}
 					}
 				}
 
-				for dep := range dependentResources {
-					depResource, okR := resourcesMap.Get(dep)
-					if !okR {
+				for dep := range dependentComponents {
+					depComponent, okC := componentsMap.Get(dep)
+					if !okC {
 						continue
 					}
 
-					// Skip resource if it was processed by previous timeline item or previous resource (via deps).
+					// Skip component if it was processed by previous timeline item or previous component (via deps).
 					if processed[dep] {
 						continue
 					}
 
 					processed[dep] = true
 
-					if !sync.IsUpdatableKind(depResource.GetKind()) {
+					if !sync.IsUpdatableKind(depComponent.GetKind()) {
 						s.Log().Warn(fmt.Sprintf("%s is not allowed to propagate", dep))
 						continue
 					}
 
-					toPropagate.Set(dep, depResource)
-					resourceVersionMap[dep] = i.GetVersion()
+					toSync.Set(dep, depComponent)
+					componentVersionMap[dep] = i.GetVersion()
 
-					if _, okD := resources.Get(dep); !okD {
+					if _, okD := components.Get(dep); !okD {
 						dependenciesLog.Set(dep, true)
 					}
 				}
 			}
 
 			for _, key := range toProcess {
-				// Ensure new version removes previous propagation for that resource.
-				toPropagate.Unset(key)
-				delete(resourceVersionMap, key)
+				// Ensure new version removes previous propagation for that component.
+				toSync.Unset(key)
+				delete(componentVersionMap, key)
 			}
 
 			if dependenciesLog.Len() > 0 {
-				s.Log().Debug("timeline item (resources)",
+				s.Log().Debug("timeline item (components)",
 					slog.String("version", item.GetVersion()),
 					slog.Time("date", item.GetDate()),
-					slog.String("resources", fmt.Sprintf("%v", toProcess)),
+					slog.String("components", fmt.Sprintf("%v", toProcess)),
 					slog.String("dependencies", fmt.Sprintf("%v", dependenciesLog.Keys())),
 				)
 			}
@@ -456,29 +456,29 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 			variables := i.GetVariables()
 			variables.SortKeysAlphabetically()
 
-			var resources []string
+			var components []string
 			for _, v := range variables.Keys() {
 				variable, _ := variables.Get(v)
-				vr := buildInv.GetVariableResources(variable.GetName(), variable.GetPlatform())
+				vc := buildInv.GetVariableComponents(variable.GetName(), variable.GetPlatform())
 
-				if len(usedResources) == 0 {
-					resources = append(resources, vr...)
+				if len(usedComponents) == 0 {
+					components = append(components, vc...)
 				} else {
-					var usedVr []string
-					for _, r := range vr {
-						if _, ok := usedResources[r]; ok {
-							usedVr = append(usedVr, r)
+					var usedVc []string
+					for _, c := range vc {
+						if _, ok := usedComponents[c]; ok {
+							usedVc = append(usedVc, c)
 						}
 					}
-					resources = append(resources, usedVr...)
+					components = append(components, usedVc...)
 				}
 			}
 
-			slices.Sort(resources)
-			resources = slices.Compact(resources)
+			slices.Sort(components)
+			components = slices.Compact(components)
 
 			var toProcess []string
-			for _, key := range resources {
+			for _, key := range components {
 				if processed[key] {
 					continue
 				}
@@ -489,45 +489,45 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 				continue
 			}
 
-			for _, r := range toProcess {
-				// First set version for main resource.
-				mainResource, okM := resourcesMap.Get(r)
+			for _, c := range toProcess {
+				// First set version for main component.
+				mainComponent, okM := componentsMap.Get(c)
 				if !okM {
-					s.Log().Warn(fmt.Sprintf("skipping not valid resource %s (direct vars dependency)", r))
+					s.Log().Warn(fmt.Sprintf("skipping not valid component %s (direct vars dependency)", c))
 					continue
 				}
 
-				processed[r] = true
+				processed[c] = true
 
-				if sync.IsUpdatableKind(mainResource.GetKind()) {
-					toPropagate.Set(r, mainResource)
-					resourceVersionMap[r] = i.GetVersion()
-					dependenciesLog.Set(r, true)
+				if sync.IsUpdatableKind(mainComponent.GetKind()) {
+					toSync.Set(c, mainComponent)
+					componentVersionMap[c] = i.GetVersion()
+					dependenciesLog.Set(c, true)
 				}
 
-				// Set versions for dependent resources.
-				dependentResources := buildInv.GetRequiredByResources(r, -1)
-				for dep := range dependentResources {
-					depResource, okR := resourcesMap.Get(dep)
-					if !okR {
-						s.Log().Warn(fmt.Sprintf("skipping not valid resource %s (dependency of %s)", dep, r))
+				// Set versions for dependent components.
+				dependentComponents := buildInv.GetRequiredByComponents(c, -1)
+				for dep := range dependentComponents {
+					depComponent, okC := componentsMap.Get(dep)
+					if !okC {
+						s.Log().Warn(fmt.Sprintf("skipping not valid component %s (dependency of %s)", dep, c))
 						continue
 					}
 
-					// Skip resource if it was processed by previous timeline item or previous resource (via deps).
+					// Skip component if it was processed by previous timeline item or previous component (via deps).
 					if processed[dep] {
 						continue
 					}
 
 					processed[dep] = true
 
-					if !sync.IsUpdatableKind(depResource.GetKind()) {
+					if !sync.IsUpdatableKind(depComponent.GetKind()) {
 						s.Log().Warn(fmt.Sprintf("%s is not allowed to propagate", dep))
 						continue
 					}
 
-					toPropagate.Set(dep, depResource)
-					resourceVersionMap[dep] = i.GetVersion()
+					toSync.Set(dep, depComponent)
+					componentVersionMap[dep] = i.GetVersion()
 
 					dependenciesLog.Set(dep, true)
 				}
@@ -538,24 +538,24 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 					slog.String("version", item.GetVersion()),
 					slog.Time("date", item.GetDate()),
 					slog.String("variables", fmt.Sprintf("%v", variables.Keys())),
-					slog.String("resources", fmt.Sprintf("%v", dependenciesLog.Keys())),
+					slog.String("components", fmt.Sprintf("%v", dependenciesLog.Keys())),
 				)
 			}
 		}
 	}
 
-	return toPropagate, resourceVersionMap, nil
+	return toSync, componentVersionMap, nil
 }
 
-func (s *Sync) updateResources(resourceVersionMap map[string]string, toPropagate *sync.OrderedMap[*sync.Resource]) error {
+func (s *Sync) updateComponents(componentVersionMap map[string]string, toSync *sync.OrderedMap[*sync.Component]) error {
 	var sortList []string
 	updateMap := make(map[string]map[string]string)
 	stopPropagation := false
 
-	s.Log().Info("Sorting resources before update")
-	for _, key := range toPropagate.Keys() {
-		r, _ := toPropagate.Get(key)
-		baseVersion, currentVersion, debug, errVersion := r.GetBaseVersion()
+	s.Log().Info("Sorting components before update")
+	for _, key := range toSync.Keys() {
+		c, _ := toSync.Get(key)
+		baseVersion, currentVersion, debug, errVersion := c.GetBaseVersion()
 		for _, d := range debug {
 			s.Log().Debug("error", "message", d)
 		}
@@ -564,25 +564,25 @@ func (s *Sync) updateResources(resourceVersionMap map[string]string, toPropagate
 		}
 
 		if currentVersion == "" {
-			s.Term().Warning().Printfln("resource %s has no version", r.GetName())
+			s.Term().Warning().Printfln("component %s has no version", c.GetName())
 			stopPropagation = true
 		}
 
-		newVersion := composeVersion(currentVersion, resourceVersionMap[r.GetName()])
-		if baseVersion == resourceVersionMap[r.GetName()] {
+		newVersion := composeVersion(currentVersion, componentVersionMap[c.GetName()])
+		if baseVersion == componentVersionMap[c.GetName()] {
 			s.Log().Debug("skip identical",
-				"baseVersion", baseVersion, "currentVersion", currentVersion, "propagateVersion", resourceVersionMap[r.GetName()], "newVersion", newVersion)
-			s.Term().Warning().Printfln("- skip %s (identical versions)", r.GetName())
+				"baseVersion", baseVersion, "currentVersion", currentVersion, "propagateVersion", componentVersionMap[c.GetName()], "newVersion", newVersion)
+			s.Term().Warning().Printfln("- skip %s (identical versions)", c.GetName())
 			continue
 		}
 
-		if _, ok := updateMap[r.GetName()]; !ok {
-			updateMap[r.GetName()] = make(map[string]string)
+		if _, ok := updateMap[c.GetName()]; !ok {
+			updateMap[c.GetName()] = make(map[string]string)
 		}
 
-		updateMap[r.GetName()]["new"] = newVersion
-		updateMap[r.GetName()]["current"] = currentVersion
-		sortList = append(sortList, r.GetName())
+		updateMap[c.GetName()]["new"] = newVersion
+		updateMap[c.GetName()]["current"] = currentVersion
+		sortList = append(sortList, c.GetName())
 	}
 
 	if stopPropagation {
@@ -599,7 +599,7 @@ func (s *Sync) updateResources(resourceVersionMap map[string]string, toPropagate
 
 	var p *pterm.ProgressbarPrinter
 	if s.ShowProgress {
-		p, _ = pterm.DefaultProgressbar.WithWriter(s.Term()).WithTotal(len(sortList)).WithTitle("Updating resources").Start()
+		p, _ = pterm.DefaultProgressbar.WithWriter(s.Term()).WithTotal(len(sortList)).WithTitle("Updating components").Start()
 	}
 	for _, key := range sortList {
 		if p != nil {
@@ -608,19 +608,19 @@ func (s *Sync) updateResources(resourceVersionMap map[string]string, toPropagate
 
 		val := updateMap[key]
 
-		r, ok := toPropagate.Get(key)
+		c, ok := toSync.Get(key)
 		currentVersion := val["current"]
 		newVersion := val["new"]
 		if !ok {
-			return fmt.Errorf("unidentified resource found during update %s", key)
+			return fmt.Errorf("unidentified component found during update %s", key)
 		}
 
-		s.Log().Info(fmt.Sprintf("%s from %s to %s", r.GetName(), currentVersion, newVersion))
+		s.Log().Info(fmt.Sprintf("%s from %s to %s", c.GetName(), currentVersion, newVersion))
 		if s.DryRun {
 			continue
 		}
 
-		debug, err := r.UpdateVersion(newVersion)
+		debug, err := c.UpdateVersion(newVersion)
 		for _, d := range debug {
 			s.Log().Debug("error", "message", d)
 		}
@@ -650,13 +650,13 @@ func composeVersion(oldVersion string, newVersion string) string {
 	return version
 }
 
-func (s *Sync) getResourcesMapFrom(dir string) (*sync.OrderedMap[*sync.Resource], error) {
+func (s *Sync) getComponentsMapFrom(dir string) (*sync.OrderedMap[*sync.Component], error) {
 	inv, err := sync.NewInventory(dir, s.Log())
 	if err != nil {
 		return nil, err
 	}
 
-	rm := inv.GetResourcesMap()
-	rm.SortKeysAlphabetically()
-	return rm, nil
+	cm := inv.GetComponentsMap()
+	cm.SortKeysAlphabetically()
+	return cm, nil
 }
