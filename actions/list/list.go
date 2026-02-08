@@ -54,7 +54,7 @@ func (l *List) Execute() error {
 	for _, n := range allNodes {
 		// Get chassis attachment (attaches: chassis → component)
 		chassis := ""
-		attachEdges := g.EdgesTo(n.Name, "attaches")
+		attachEdges := g.EdgesTo(n.Name, "distributes")
 		if len(attachEdges) > 0 {
 			chassis = attachEdges[0].From().Name
 		}
@@ -112,7 +112,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 	// Build chassis path to nodes map from graph
 	chassisToNodes := make(map[string][]string)
 	for _, n := range g.NodesByType("node") {
-		for _, e := range g.EdgesFrom(n.Name, "memberof") {
+		for _, e := range g.EdgesFrom(n.Name, "allocates") {
 			chassisToNodes[e.To().Name] = append(chassisToNodes[e.To().Name], n.Name)
 		}
 	}

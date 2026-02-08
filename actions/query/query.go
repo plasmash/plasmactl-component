@@ -49,7 +49,7 @@ func (q *Query) Execute() error {
 	// Try 1: Query by chassis path (attaches: chassis → component)
 	if searchChassis {
 		for _, n := range g.NodesByType("component") {
-			for _, e := range g.EdgesTo(n.Name, "attaches") {
+			for _, e := range g.EdgesTo(n.Name, "distributes") {
 				chassis := e.From().Name
 				if chassis == q.Identifier || strings.HasPrefix(chassis, q.Identifier+".") {
 					matches = append(matches, componentMatch{
@@ -69,13 +69,13 @@ func (q *Query) Execute() error {
 		if nodeNode != nil && nodeNode.Type == "node" {
 			// Get chassis paths this node serves
 			chassisSet := make(map[string]bool)
-			for _, e := range g.EdgesFrom(nodeNode.Name, "memberof") {
+			for _, e := range g.EdgesFrom(nodeNode.Name, "allocates") {
 				chassisSet[e.To().Name] = true
 			}
 
 			// Find components attached to those chassis paths (attaches: chassis → component)
 			for _, n := range g.NodesByType("component") {
-				for _, e := range g.EdgesTo(n.Name, "attaches") {
+				for _, e := range g.EdgesTo(n.Name, "distributes") {
 					if chassisSet[e.From().Name] {
 						matches = append(matches, componentMatch{
 							name:    n.Name,

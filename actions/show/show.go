@@ -69,7 +69,7 @@ func (s *Show) Execute() error {
 
 	// Get chassis attachment (attaches: chassis → component)
 	chassis := ""
-	attachEdges := g.EdgesTo(n.Name, "attaches")
+	attachEdges := g.EdgesTo(n.Name, "distributes")
 	if len(attachEdges) > 0 {
 		chassis = attachEdges[0].From().Name
 	}
@@ -87,7 +87,7 @@ func (s *Show) Execute() error {
 	// Get allocations (nodes serving the chassis path)
 	var allocations []string
 	if chassis != "" {
-		for _, e := range g.EdgesTo(chassis, "memberof") {
+		for _, e := range g.EdgesTo(chassis, "allocates") {
 			allocations = append(allocations, e.From().Name)
 		}
 		sort.Strings(allocations)
@@ -130,7 +130,7 @@ func (s *Show) showOverview() error {
 		byLayer[n.Layer]++
 		byKind[n.Kind]++
 
-		attachEdges := g.EdgesTo(n.Name, "attaches")
+		attachEdges := g.EdgesTo(n.Name, "distributes")
 		if len(attachEdges) > 0 {
 			attachedCount++
 			attachedByKind[n.Kind]++
