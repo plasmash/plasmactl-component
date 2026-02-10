@@ -110,15 +110,12 @@ func (d *Depend) executeShow() error {
 	}
 
 	if d.Tree {
-		if d.Reverse {
-			d.printTree(searchMrn, g, edgeTypes, true, d.Path, d.Depth)
-		} else {
-			d.printTree(searchMrn, g, edgeTypes, false, d.Path, d.Depth)
-		}
-	} else {
+		d.printTree(searchMrn, g, edgeTypes, d.Reverse, d.Path, d.Depth)
+	} else if d.Reverse {
 		if len(parents) > 0 {
 			d.printList(parents, d.Path, "requiredby")
 		}
+	} else {
 		if len(children) > 0 {
 			d.printList(children, d.Path, "requires")
 		}

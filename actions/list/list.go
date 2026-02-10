@@ -196,8 +196,8 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 
 // topLevelKinds are component kinds that are expected to have no dependents
 var topLevelKinds = map[string]bool{
-	"applications": true,
-	"executors":    true,
+	"application": true,
+	"agent":       true,
 }
 
 // filterOrphans returns components that nothing depends on, excluding top-level kinds
