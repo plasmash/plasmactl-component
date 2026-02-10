@@ -166,7 +166,7 @@ func collectComponentsCommits(r *git.Repository, beforeDate string) (*sync.Order
 			hashes[hash]["original"] = c.Hash.String()
 			hashes[hash]["section"] = ""
 		} else {
-			panic(fmt.Sprintf("dupicate version hash has been met %s during commits iteration", hash))
+			return fmt.Errorf("duplicate version hash %s during commits iteration", hash)
 		}
 
 		if ref.Hash() == c.Hash {
