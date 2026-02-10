@@ -151,7 +151,7 @@ func (s *Show) showOverview() error {
 	s.Term().Info().Printfln("By Layer (%d total)", len(allComponents))
 	layers := sortedKeys(byLayer)
 	for _, layer := range layers {
-		fmt.Printf("  %s\t%d\n", layer, byLayer[layer])
+		s.Term().Printfln("  %s\t%d", layer, byLayer[layer])
 	}
 
 	// Print by kind
@@ -160,9 +160,9 @@ func (s *Show) showOverview() error {
 	for _, kind := range kinds {
 		attached := attachedByKind[kind]
 		if attached > 0 {
-			fmt.Printf("  %s\t%d (%d attached)\n", kind, byKind[kind], attached)
+			s.Term().Printfln("  %s\t%d (%d attached)", kind, byKind[kind], attached)
 		} else {
-			fmt.Printf("  %s\t%d\n", kind, byKind[kind])
+			s.Term().Printfln("  %s\t%d", kind, byKind[kind])
 		}
 	}
 
@@ -185,23 +185,23 @@ func sortedKeys(m map[string]int) []string {
 
 // printComponent outputs human-readable component details
 func (s *Show) printComponent(comp *ComponentInfo) {
-	fmt.Printf("component\t%s\n", comp.Name)
-	fmt.Printf("version\t%s\n", component.FormatVersion(comp.Version))
-	fmt.Printf("layer\t%s\n", comp.Layer)
-	fmt.Printf("kind\t%s\n", comp.Kind)
+	s.Term().Printfln("component\t%s", comp.Name)
+	s.Term().Printfln("version\t%s", component.FormatVersion(comp.Version))
+	s.Term().Printfln("layer\t%s", comp.Layer)
+	s.Term().Printfln("kind\t%s", comp.Kind)
 	if comp.Package != "" {
-		fmt.Printf("package\t%s\n", comp.Package)
+		s.Term().Printfln("package\t%s", comp.Package)
 	}
 	if comp.Attachment != "" {
-		fmt.Printf("attachment\t%s\n", comp.Attachment)
+		s.Term().Printfln("attachment\t%s", comp.Attachment)
 	} else {
-		fmt.Printf("attachment\t(not attached)\n")
+		s.Term().Printfln("attachment\t(not attached)")
 	}
 
 	if len(comp.Allocations) > 0 {
 		s.Term().Info().Printfln("Allocations (%d)", len(comp.Allocations))
 		for _, n := range comp.Allocations {
-			fmt.Println(n)
+			s.Term().Printfln("%s", n)
 		}
 	}
 }

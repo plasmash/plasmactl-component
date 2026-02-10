@@ -101,7 +101,7 @@ func (l *List) Execute() error {
 
 	// Flat output - one per line, scriptable
 	for _, item := range items {
-		fmt.Println(component.FormatDisplayName(item.Name, item.Version))
+		l.Term().Printfln("%s", component.FormatDisplayName(item.Name, item.Version))
 	}
 
 	return nil
@@ -140,7 +140,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 		})
 
 		// Print kind header
-		fmt.Println(kind)
+		l.Term().Printfln("%s", kind)
 
 		for ci, comp := range comps {
 			isLastComp := ci == len(comps)-1 && ki == len(kinds)-1
@@ -154,7 +154,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 				compIndent = "│   "
 			}
 
-			fmt.Printf("%s🧩 %s\n", compPrefix, component.FormatDisplayName(comp.Name, comp.Version))
+			l.Term().Printfln("%s🧩 %s", compPrefix, component.FormatDisplayName(comp.Name, comp.Version))
 
 			// Get nodes that serve this component's chassis path
 			nodes := chassisToNodes[comp.Chassis]
@@ -171,7 +171,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 			} else {
 				childPrefix = compIndent + "├── "
 			}
-			fmt.Printf("%s📍 %s\n", childPrefix, comp.Chassis)
+			l.Term().Printfln("%s📍 %s", childPrefix, comp.Chassis)
 
 			// Print nodes
 			for _, n := range nodes {
@@ -182,12 +182,12 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 				} else {
 					childPrefix = compIndent + "├── "
 				}
-				fmt.Printf("%s🖥  %s\n", childPrefix, n)
+				l.Term().Printfln("%s🖥  %s", childPrefix, n)
 			}
 		}
 
 		if ki < len(kinds)-1 {
-			fmt.Println()
+			l.Term().Println()
 		}
 	}
 

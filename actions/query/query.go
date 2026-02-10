@@ -114,7 +114,7 @@ func (q *Query) Execute() error {
 
 	// Output
 	for _, m := range matches {
-		fmt.Printf("%s\t%s\t%s\n", m.DisplayName(), m.kind, m.chassis)
+		q.Term().Printfln("%s\t%s\t%s", m.DisplayName(), m.kind, m.chassis)
 	}
 
 	return nil
