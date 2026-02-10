@@ -88,12 +88,12 @@ func (l *List) Execute() error {
 		return items[i].Name < items[j].Name
 	})
 
+	l.result = &ListResult{Components: items}
+
 	if len(items) == 0 {
 		l.Term().Warning().Println("No components found")
 		return nil
 	}
-
-	l.result = &ListResult{Components: items}
 
 	if l.Tree {
 		return l.printTree(items, g)

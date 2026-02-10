@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/launchrctl/launchr/pkg/action"
 	"gopkg.in/yaml.v3"
@@ -91,7 +90,7 @@ func (c *Configure) executeGet() error {
 		return fmt.Errorf("key %q not found", c.Key)
 	}
 
-	fmt.Println(value)
+	c.Term().Printfln("%v", value)
 	return nil
 }
 
@@ -186,20 +185,19 @@ func (c *Configure) executeList() error {
 		return nil
 	}
 
+	term := c.Term()
 	switch strings.ToLower(c.Format) {
 	case "json":
 		output, _ := json.MarshalIndent(result, "", "  ")
-		fmt.Println(string(output))
+		term.Printfln("%s", string(output))
 	case "yaml":
 		output, _ := yaml.Marshal(result)
-		fmt.Println(string(output))
+		term.Printfln("%s", string(output))
 	default:
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "KEY\tVALUE")
+		term.Printfln("%-30s %s", "KEY", "VALUE")
 		for k, v := range result {
-			fmt.Fprintf(w, "%s\t%v\n", k, v)
+			term.Printfln("%-30s %v", k, v)
 		}
-		w.Flush()
 	}
 
 	return nil
