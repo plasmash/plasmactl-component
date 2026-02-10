@@ -39,6 +39,7 @@ action:
       title: At
       description: "Chassis section for override scope (e.g., platform.foundation.cluster). Without --at, operates on component defaults."
       type: string
+      default: ""
     - name: vault
       title: Vault
       description: Target vault (secrets) instead of vars
