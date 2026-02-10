@@ -297,7 +297,10 @@ func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.Ord
 			continue
 		}
 
-		buildComponentEntity := sync.NewComponent(componentName, s.BuildDir)
+		buildComponentEntity, err := sync.NewComponent(componentName, s.BuildDir)
+		if err != nil {
+			return nil, nil, err
+		}
 		buildVersion, debug, err := buildComponentEntity.GetVersion()
 		for _, d := range debug {
 			s.Log().Debug("error", "message", d)
@@ -308,7 +311,10 @@ func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.Ord
 
 		var sameVersionNamespaces []string
 		for conflictingNamespace := range conflicts {
-			conflictEntity := sync.NewComponent(componentName, packagePathMap[conflictingNamespace])
+			conflictEntity, err := sync.NewComponent(componentName, packagePathMap[conflictingNamespace])
+			if err != nil {
+				return nil, nil, err
+			}
 
 			baseVersion, _, debug, err := conflictEntity.GetBaseVersion()
 			for _, d := range debug {

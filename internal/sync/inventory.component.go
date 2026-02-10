@@ -44,10 +44,10 @@ type Component struct {
 
 // NewComponent returns new [Component] instance.
 // Accepts dot notation: "foundation.applications.auth"
-func NewComponent(name, prefix string) *Component {
+func NewComponent(name, prefix string) (*Component, error) {
 	parts := strings.Split(name, ".")
 	if len(parts) != 3 {
-		panic("invalid component name submitted (expected: layer.kind.name)")
+		return nil, fmt.Errorf("invalid component name %q (expected: layer.kind.name)", name)
 	}
 
 	return &Component{
@@ -56,7 +56,7 @@ func NewComponent(name, prefix string) *Component {
 		platform:   parts[0],
 		kind:       parts[1],
 		role:       parts[2],
-	}
+	}, nil
 }
 
 // GetName returns a machine component name.
@@ -215,7 +215,10 @@ func BuildComponentFromPath(path, pathPrefix string) *Component {
 		return nil
 	}
 
-	component := NewComponent(PrepareComponentName(platform, kind, role), pathPrefix)
+	component, err := NewComponent(PrepareComponentName(platform, kind, role), pathPrefix)
+	if err != nil {
+		return nil
+	}
 	if !component.IsValidComponent() {
 		return nil
 	}

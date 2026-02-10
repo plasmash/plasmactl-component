@@ -301,7 +301,10 @@ func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.O
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
-	buildComponent := sync.NewComponent(component.GetName(), s.BuildDir)
+	buildComponent, err := sync.NewComponent(component.GetName(), s.BuildDir)
+	if err != nil {
+		return err
+	}
 	currentVersion, debug, err := buildComponent.GetVersion()
 	for _, d := range debug {
 		s.Log().Debug("error", "message", d)

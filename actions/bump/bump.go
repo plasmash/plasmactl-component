@@ -85,7 +85,10 @@ func (b *Bump) getComponent(path string) *sync.Component {
 		return nil
 	}
 
-	component := sync.NewComponent(sync.PrepareComponentName(platform, kind, role), ".")
+	component, err := sync.NewComponent(sync.PrepareComponentName(platform, kind, role), ".")
+	if err != nil {
+		return nil
+	}
 	if !component.IsValidComponent() {
 		return nil
 	}
