@@ -61,3 +61,15 @@ action:
       description: Skip confirmation for --generate (secret rotation)
       type: boolean
       default: false
+  result:
+    type: object
+    properties:
+      operation:
+        type: string
+      key:
+        type: string
+      value: {}
+      scope:
+        type: string
+      entries:
+        type: object

@@ -18,3 +18,12 @@ action:
       description: Source directory containing layer definitions
       type: string
       default: "."
+  result:
+    type: object
+    properties:
+      component:
+        type: string
+      chassis:
+        type: string
+      detached:
+        type: boolean

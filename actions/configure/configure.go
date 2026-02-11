@@ -11,6 +11,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ConfigureResult is the structured result of component:configure.
+type ConfigureResult struct {
+	Operation string                 `json:"operation"`
+	Key       string                 `json:"key,omitempty"`
+	Value     interface{}            `json:"value,omitempty"`
+	Scope     string                 `json:"scope,omitempty"`
+	Entries   map[string]interface{} `json:"entries,omitempty"`
+}
+
 // Configure implements the unified component:configure command
 type Configure struct {
 	action.WithLogger
@@ -34,6 +43,13 @@ type Configure struct {
 	Format     string
 	Strict     bool
 	YesIAmSure bool
+
+	result *ConfigureResult
+}
+
+// Result returns the structured result for JSON output.
+func (c *Configure) Result() any {
+	return c.result
 }
 
 // Execute runs the configure action based on flags
@@ -90,6 +106,7 @@ func (c *Configure) executeGet() error {
 		return fmt.Errorf("key %q not found", c.Key)
 	}
 
+	c.result = &ConfigureResult{Operation: "get", Key: c.Key, Value: value}
 	c.Term().Printfln("%v", value)
 	return nil
 }
@@ -139,6 +156,7 @@ func (c *Configure) executeSet() error {
 	if c.At != "" {
 		scope = c.At
 	}
+	c.result = &ConfigureResult{Operation: "set", Key: c.Key, Value: c.Value, Scope: scope}
 	c.Term().Success().Printfln("Set %s = %s (scope: %s)", c.Key, c.Value, scope)
 	return nil
 }
@@ -181,9 +199,12 @@ func (c *Configure) executeList() error {
 	}
 
 	if len(result) == 0 {
+		c.result = &ConfigureResult{Operation: "list"}
 		c.Term().Info().Println("No configuration values found")
 		return nil
 	}
+
+	c.result = &ConfigureResult{Operation: "list", Entries: result}
 
 	term := c.Term()
 	switch strings.ToLower(c.Format) {
@@ -211,6 +232,7 @@ func (c *Configure) executeValidate() error {
 	// 2. Validate config values against schemas
 	// 3. Report errors and warnings
 
+	c.result = &ConfigureResult{Operation: "validate"}
 	c.Term().Warning().Println("Schema-based validation not yet implemented")
 	c.Term().Success().Println("Basic config structure is valid")
 	return nil
@@ -233,6 +255,7 @@ func (c *Configure) executeGenerate() error {
 	// 2. Update vault.yaml
 	// 3. Optionally trigger re-deployment
 
+	c.result = &ConfigureResult{Operation: "generate", Key: c.Key}
 	c.Term().Warning().Println("Secret generation not yet implemented")
 	return nil
 }

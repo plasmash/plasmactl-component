@@ -32,6 +32,19 @@ const (
 	buildHackAuthor = "override"
 )
 
+// SyncedComponent represents a single component version change during sync.
+type SyncedComponent struct {
+	Name       string `json:"name"`
+	OldVersion string `json:"old_version"`
+	NewVersion string `json:"new_version"`
+}
+
+// SyncResult is the structured result of component:sync.
+type SyncResult struct {
+	Components []SyncedComponent `json:"components"`
+	DryRun     bool              `json:"dry_run"`
+}
+
 // Sync is a type representing a components version synchronization action.
 type Sync struct {
 	action.WithLogger
@@ -57,6 +70,13 @@ type Sync struct {
 	TimeDepth              string
 	VaultPass              string
 	ShowProgress           bool
+
+	result *SyncResult
+}
+
+// Result returns the structured result for JSON output.
+func (s *Sync) Result() any {
+	return s.result
 }
 
 type hashStruct struct {
@@ -67,6 +87,7 @@ type hashStruct struct {
 
 // Execute the sync action to propagate resources' versions.
 func (s *Sync) Execute() error {
+	s.result = &SyncResult{DryRun: s.DryRun}
 	s.Term().Info().Println("Processing propagation...")
 
 	err := s.ensureVaultpassExists()
@@ -621,6 +642,11 @@ func (s *Sync) updateComponents(componentVersionMap map[string]string, toSync *s
 			return fmt.Errorf("unidentified component found during update %s", key)
 		}
 
+		s.result.Components = append(s.result.Components, SyncedComponent{
+			Name:       c.GetName(),
+			OldVersion: currentVersion,
+			NewVersion: newVersion,
+		})
 		s.Log().Info(fmt.Sprintf("%s from %s to %s", c.GetName(), currentVersion, newVersion))
 		if s.DryRun {
 			continue

@@ -14,6 +14,19 @@ var unversionedFiles = map[string]struct{}{
 	"README.svg": {},
 }
 
+// BumpedComponent represents a single component version change.
+type BumpedComponent struct {
+	Name       string `json:"name"`
+	OldVersion string `json:"old_version"`
+	NewVersion string `json:"new_version"`
+}
+
+// BumpResult is the structured result of component:bump.
+type BumpResult struct {
+	Components []BumpedComponent `json:"components"`
+	DryRun     bool              `json:"dry_run"`
+}
+
 // Bump is an action representing versions update of committed components.
 type Bump struct {
 	action.WithLogger
@@ -21,6 +34,13 @@ type Bump struct {
 
 	Last   bool
 	DryRun bool
+
+	result *BumpResult
+}
+
+// Result returns the structured result for JSON output.
+func (b *Bump) Result() any {
+	return b.result
 }
 
 func (b *Bump) printMemo() {
@@ -32,6 +52,7 @@ func (b *Bump) printMemo() {
 
 // Execute the bump action to update committed components.
 func (b *Bump) Execute() error {
+	b.result = &BumpResult{DryRun: b.DryRun}
 	b.Term().Info().Println("Bumping updated components...")
 	b.printMemo()
 
@@ -141,6 +162,11 @@ func (b *Bump) updateComponents(hashComponentsMap map[string]map[string]*sync.Co
 				return err
 			}
 
+			b.result.Components = append(b.result.Components, BumpedComponent{
+				Name:       name,
+				OldVersion: currentVersion,
+				NewVersion: version,
+			})
 			b.Term().Printfln("- %s from %s to %s", name, currentVersion, version)
 			if b.DryRun {
 				continue

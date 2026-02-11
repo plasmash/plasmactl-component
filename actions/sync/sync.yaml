@@ -33,3 +33,19 @@ action:
       description: Password for Ansible Vault
       type: string
       default: ""
+  result:
+    type: object
+    properties:
+      components:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            old_version:
+              type: string
+            new_version:
+              type: string
+      dry_run:
+        type: boolean

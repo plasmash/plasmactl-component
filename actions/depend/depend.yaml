@@ -49,3 +49,31 @@ action:
       description: Include build dependencies (from main.yaml, i.e., helpers/builders)
       type: boolean
       default: false
+  result:
+    type: object
+    properties:
+      target:
+        type: string
+      mode:
+        type: string
+      requires:
+        type: array
+        items:
+          type: string
+      required_by:
+        type: array
+        items:
+          type: string
+      operations:
+        type: array
+        items:
+          type: object
+          properties:
+            type:
+              type: string
+            dep:
+              type: string
+            new_dep:
+              type: string
+            applied:
+              type: boolean

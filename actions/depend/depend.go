@@ -13,6 +13,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// DependOpResult represents the result of a single dependency operation.
+type DependOpResult struct {
+	Type   string `json:"type"`
+	Dep    string `json:"dep"`
+	NewDep string `json:"new_dep,omitempty"`
+	Applied bool  `json:"applied"`
+}
+
+// DependResult is the structured result of component:depend.
+type DependResult struct {
+	Target     string           `json:"target"`
+	Mode       string           `json:"mode"`
+	Requires   []string         `json:"requires,omitempty"`
+	RequiredBy []string         `json:"required_by,omitempty"`
+	Operations []DependOpResult `json:"operations,omitempty"`
+}
+
 // Depend implements component:depend command
 type Depend struct {
 	action.WithLogger
@@ -29,6 +46,13 @@ type Depend struct {
 	Reverse bool // show reverse dependencies (requiredby)
 	Depth   int8 // recursion depth limit
 	Build   bool // include build dependencies (from main.yaml)
+
+	result *DependResult
+}
+
+// Result returns the structured result for JSON output.
+func (d *Depend) Result() any {
+	return d.result
 }
 
 // DependOp represents a parsed dependency operation
@@ -102,6 +126,25 @@ func (d *Depend) executeShow() error {
 		children[n.Name] = true
 	}
 
+	// Build sorted slices for the result
+	requires := make([]string, 0, len(children))
+	for k := range children {
+		requires = append(requires, k)
+	}
+	sort.Strings(requires)
+	requiredBy := make([]string, 0, len(parents))
+	for k := range parents {
+		requiredBy = append(requiredBy, k)
+	}
+	sort.Strings(requiredBy)
+
+	d.result = &DependResult{
+		Target:     searchMrn,
+		Mode:       "show",
+		Requires:   requires,
+		RequiredBy: requiredBy,
+	}
+
 	if len(parents) == 0 && len(children) == 0 {
 		d.Term().Info().Println("No dependencies found")
 		d.Term().Println()
@@ -140,6 +183,10 @@ func (d *Depend) executeOperations() error {
 	// Parse operations
 	ops := d.parseOperations()
 	modified := false
+	d.result = &DependResult{
+		Target: d.Target,
+		Mode:   "operations",
+	}
 
 	for _, op := range ops {
 		depMrn, err := d.resolveDependencyMRN(op.Dep)
@@ -149,14 +196,22 @@ func (d *Depend) executeOperations() error {
 
 		switch op.Type {
 		case "add":
-			if d.addDep(&deps, depMrn) {
+			applied := d.addDep(&deps, depMrn)
+			d.result.Operations = append(d.result.Operations, DependOpResult{
+				Type: "add", Dep: depMrn, Applied: applied,
+			})
+			if applied {
 				d.Term().Success().Printfln("Added: %s", depMrn)
 				modified = true
 			} else {
 				d.Term().Warning().Printfln("Already exists: %s", depMrn)
 			}
 		case "remove":
-			if d.removeDep(&deps, depMrn) {
+			applied := d.removeDep(&deps, depMrn)
+			d.result.Operations = append(d.result.Operations, DependOpResult{
+				Type: "remove", Dep: depMrn, Applied: applied,
+			})
+			if applied {
 				d.Term().Success().Printfln("Removed: %s", depMrn)
 				modified = true
 			} else {
@@ -169,7 +224,11 @@ func (d *Depend) executeOperations() error {
 			}
 			removed := d.removeDep(&deps, depMrn)
 			added := d.addDep(&deps, newMrn)
-			if removed || added {
+			applied := removed || added
+			d.result.Operations = append(d.result.Operations, DependOpResult{
+				Type: "replace", Dep: depMrn, NewDep: newMrn, Applied: applied,
+			})
+			if applied {
 				d.Term().Success().Printfln("Replaced: %s → %s", depMrn, newMrn)
 				modified = true
 			} else {
