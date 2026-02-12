@@ -15,10 +15,10 @@ import (
 
 // DependOpResult represents the result of a single dependency operation.
 type DependOpResult struct {
-	Type   string `json:"type"`
-	Dep    string `json:"dep"`
-	NewDep string `json:"new_dep,omitempty"`
-	Applied bool  `json:"applied"`
+	Type    string `json:"type"`
+	Dep     string `json:"dep"`
+	NewDep  string `json:"new_dep,omitempty"`
+	Applied bool   `json:"applied"`
 }
 
 // DependResult is the structured result of component:depend.

@@ -168,8 +168,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/plasmash/plasmactl-model => /home/jbguerraz/Sources/plasmactl-model
+replace github.com/plasmash/plasmactl-model => ../plasmactl-model
 
-replace github.com/plasmash/plasmactl-platform => /home/jbguerraz/Sources/plasmactl-platform
+replace github.com/plasmash/plasmactl-platform => ../plasmactl-platform
 
 replace github.com/launchrctl/launchr => ../launchr

@@ -94,12 +94,12 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			BuildDir:    model.MergedSrcDir,
 			PackagesDir: model.PackagesDir,
 
-			DryRun:                dryRun,
+			DryRun:                 dryRun,
 			FilterByComponentUsage: filterByComponentUsage,
-			TimeDepth:             timeDepth,
-			AllowOverride:         allowOverride,
-			VaultPass:             vaultpass,
-			ShowProgress:          !hideProgress,
+			TimeDepth:              timeDepth,
+			AllowOverride:          allowOverride,
+			VaultPass:              vaultpass,
+			ShowProgress:           !hideProgress,
 		}
 
 		s.SetLogger(log)
