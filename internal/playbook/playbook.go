@@ -54,10 +54,10 @@ func (r Role) MarshalYAML() (interface{}, error) {
 
 // Play represents a play in a layer playbook
 type Play struct {
-	Hosts          string `yaml:"hosts"`
-	Serial         int    `yaml:"serial,omitempty"`
-	AnyErrorsFatal bool   `yaml:"any_errors_fatal,omitempty"`
-	Roles          []Role `yaml:"roles"`
+	Hosts          string   `yaml:"hosts"`
+	Serial         int      `yaml:"serial,omitempty"`
+	AnyErrorsFatal bool     `yaml:"any_errors_fatal,omitempty"`
+	Roles          []Role   `yaml:"roles"`
 	Tags           []string `yaml:"tags,omitempty"`
 }
 
