@@ -224,7 +224,7 @@ func collectComponentsCommits(r *git.Repository, beforeDate string) (*sync.Order
 }
 
 func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents *sync.OrderedMap[*sync.Component], gitPath string, mx *async.Mutex, p *pterm.ProgressbarPrinter) error {
-	repo, err := git.PlainOpen(gitPath)
+	repo, err := git.PlainOpenWithOptions(gitPath, &git.PlainOpenOptions{EnableDotGitCommonDir: true})
 	if err != nil {
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
@@ -250,7 +250,7 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 					if !ok {
 						return
 					}
-					if err = s.processComponent(c, groups, commitsMap, repo, gitPath, mx); err != nil {
+					if err = s.processComponent(c, groups, commitsMap, repo, mx); err != nil {
 						if p != nil {
 							_, _ = p.Stop()
 						}
@@ -295,12 +295,7 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 	return nil
 }
 
-func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, _ *git.Repository, gitPath string, mx *async.Mutex) error {
-	repo, err := git.PlainOpen(gitPath)
-	if err != nil {
-		return fmt.Errorf("%s - %w", gitPath, err)
-	}
-
+func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, repo *git.Repository, mx *async.Mutex) error {
 	buildComponent, err := sync.NewComponent(component.GetName(), s.BuildDir)
 	if err != nil {
 		return err
