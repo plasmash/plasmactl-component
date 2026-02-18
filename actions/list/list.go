@@ -143,10 +143,8 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 		l.Term().Printfln("%s", kind)
 
 		for ci, comp := range comps {
-			isLastComp := ci == len(comps)-1 && ki == len(kinds)-1
-
 			var compPrefix, compIndent string
-			if isLastComp || ci == len(comps)-1 {
+			if ci == len(comps)-1 {
 				compPrefix = "└── "
 				compIndent = "    "
 			} else {
@@ -155,6 +153,11 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 			}
 
 			l.Term().Printfln("%s🧩 %s", compPrefix, component.FormatDisplayName(comp.Name, comp.Version))
+
+			// Skip chassis/node detail for unattached components (--all mode)
+			if comp.Chassis == "" {
+				continue
+			}
 
 			// Get nodes that serve this component's chassis path
 			nodes := chassisToNodes[comp.Chassis]
@@ -176,7 +179,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 			// Print nodes
 			for _, n := range nodes {
 				childIdx++
-				isLast := childIdx == totalChildren
+				isLast = childIdx == totalChildren
 				if isLast {
 					childPrefix = compIndent + "└── "
 				} else {

@@ -12,7 +12,7 @@ action:
     - name: kind
       shorthand: k
       title: Kind
-      description: Filter by component kind (applications, services, flows, etc.)
+      description: Filter by component kind (application, service, agent, etc.)
       type: string
       default: ""
     - name: all
@@ -24,7 +24,7 @@ action:
     - name: orphans
       shorthand: o
       title: Orphans
-      description: Show only orphan components (nothing depends on them, excludes applications/executors)
+      description: Show only orphan components (nothing depends on them, excludes applications/agents)
       type: boolean
       default: false
   result:
@@ -39,12 +39,15 @@ action:
             name:
               type: string
               description: Full component name
+            version:
+              type: string
+              description: Component version (git hash)
             layer:
               type: string
               description: Component layer
             kind:
               type: string
               description: Component kind
-            section:
+            chassis:
               type: string
-              description: Chassis section attachment
+              description: Chassis section this component is distributed to
