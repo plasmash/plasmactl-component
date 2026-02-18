@@ -22,7 +22,7 @@ action:
       type: boolean
       default: false
     - name: orphans
-      shorthand: o
+      shorthand: O
       title: Orphans
       description: Show only orphan components (nothing depends on them, excludes applications/agents)
       type: boolean

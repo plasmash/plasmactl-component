@@ -46,7 +46,7 @@ action:
       type: boolean
       default: false
     - name: format
-      shorthand: o
+      shorthand: f
       title: Output Format
       description: Output format for --list (table, json, yaml)
       type: string
