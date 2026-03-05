@@ -1,7 +1,6 @@
 package configure
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -40,7 +39,6 @@ type Configure struct {
 
 	// Modifiers
 	Vault      bool
-	Format     string
 	Strict     bool
 	YesIAmSure bool
 
@@ -207,18 +205,9 @@ func (c *Configure) executeList() error {
 	c.result = &ConfigureResult{Operation: "list", Entries: result}
 
 	term := c.Term()
-	switch strings.ToLower(c.Format) {
-	case "json":
-		output, _ := json.MarshalIndent(result, "", "  ")
-		term.Printfln("%s", string(output))
-	case "yaml":
-		output, _ := yaml.Marshal(result)
-		term.Printfln("%s", string(output))
-	default:
-		term.Printfln("%-30s %s", "KEY", "VALUE")
-		for k, v := range result {
-			term.Printfln("%-30s %v", k, v)
-		}
+	term.Printfln("%-30s %s", "KEY", "VALUE")
+	for k, v := range result {
+		term.Printfln("%-30s %v", k, v)
 	}
 
 	return nil

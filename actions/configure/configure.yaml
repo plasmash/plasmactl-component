@@ -45,12 +45,6 @@ action:
       description: Target vault (secrets) instead of vars
       type: boolean
       default: false
-    - name: format
-      shorthand: f
-      title: Output Format
-      description: Output format for --list (table, json, yaml)
-      type: string
-      default: "table"
     - name: strict
       title: Strict
       description: Fail on warnings during --validate

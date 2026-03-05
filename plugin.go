@@ -183,7 +183,6 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 			At: input.Opt("at").(string),
 
 			Vault:      input.Opt("vault").(bool),
-			Format:     input.Opt("format").(string),
 			Strict:     input.Opt("strict").(bool),
 			YesIAmSure: input.Opt("yes-i-am-sure").(bool),
 		}
