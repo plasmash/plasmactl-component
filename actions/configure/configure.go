@@ -35,7 +35,7 @@ type Configure struct {
 	Generate bool
 
 	// Scope
-	At string // chassis path for override, empty for component defaults
+	At string // zone for override, empty for component defaults
 
 	// Modifiers
 	Vault      bool
@@ -261,8 +261,8 @@ func (c *Configure) resolveConfigDir() (string, error) {
 		return "", fmt.Errorf("component defaults directory not found")
 	}
 
-	// Chassis-scoped override: src/{layer}/cfg/{chassisPath}/
-	return resolveChassisConfigDir(c.At)
+	// Zone-scoped override: src/{layer}/cfg/{zonePath}/
+	return resolveZoneConfigDir(c.At)
 }
 
 // createConfigDir creates the configuration directory if it doesn't exist
@@ -275,10 +275,10 @@ func (c *Configure) createConfigDir() (string, error) {
 		return configDir, nil
 	}
 
-	// Chassis-scoped: src/{layer}/cfg/{chassisPath}/
+	// Zone-scoped: src/{layer}/cfg/{zonePath}/
 	parts := strings.Split(c.At, ".")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid chassis path %q (expected format: platform.{layer}.{...})", c.At)
+		return "", fmt.Errorf("invalid zone %q (expected format: platform.{layer}.{...})", c.At)
 	}
 	layer := parts[1]
 	configDir := filepath.Join("src", layer, "cfg", c.At)
@@ -288,25 +288,25 @@ func (c *Configure) createConfigDir() (string, error) {
 	return configDir, nil
 }
 
-// resolveChassisConfigDir finds the configuration directory for a chassis path
-func resolveChassisConfigDir(chassisPath string) (string, error) {
-	if chassisPath == "" {
-		return "", fmt.Errorf("chassis path is required")
+// resolveZoneConfigDir finds the configuration directory for a zone
+func resolveZoneConfigDir(zonePath string) (string, error) {
+	if zonePath == "" {
+		return "", fmt.Errorf("zone is required")
 	}
 
-	// Parse chassis path to extract layer
+	// Parse zone to extract layer
 	// Example: platform.foundation.cluster -> foundation
-	parts := strings.Split(chassisPath, ".")
+	parts := strings.Split(zonePath, ".")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid chassis path %q (expected format: platform.{layer}.{...})", chassisPath)
+		return "", fmt.Errorf("invalid zone %q (expected format: platform.{layer}.{...})", zonePath)
 	}
 
 	layer := parts[1] // e.g., "foundation", "integration", "cognition"
 
-	configDir := filepath.Join("src", layer, "cfg", chassisPath)
+	configDir := filepath.Join("src", layer, "cfg", zonePath)
 	if _, err := os.Stat(configDir); err == nil {
 		return configDir, nil
 	}
 
-	return "", fmt.Errorf("chassis config directory not found: %s", configDir)
+	return "", fmt.Errorf("zone config directory not found: %s", configDir)
 }

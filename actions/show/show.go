@@ -67,11 +67,11 @@ func (s *Show) Execute() error {
 		return nil
 	}
 
-	// Get chassis attachment (attaches: chassis → component)
-	chassis := ""
+	// Get zone attachment (distributes: zone → component)
+	zone := ""
 	attachEdges := g.EdgesTo(n.Name, "distributes")
 	if len(attachEdges) > 0 {
-		chassis = attachEdges[0].From().Name
+		zone = attachEdges[0].From().Name
 	}
 
 	// Get package (package → component via "contains" edge)
@@ -84,10 +84,10 @@ func (s *Show) Execute() error {
 		}
 	}
 
-	// Get allocations (nodes serving the chassis path)
+	// Get allocations (nodes serving the zone)
 	var allocations []string
-	if chassis != "" {
-		for _, e := range g.EdgesTo(chassis, "allocates") {
+	if zone != "" {
+		for _, e := range g.EdgesTo(zone, "allocates") {
 			allocations = append(allocations, e.From().Name)
 		}
 		sort.Strings(allocations)
@@ -101,7 +101,7 @@ func (s *Show) Execute() error {
 			Layer:       n.Layer,
 			Kind:        n.Kind,
 			Package:     pkg,
-			Attachment:  chassis,
+			Attachment:  zone,
 			Allocations: allocations,
 		},
 	}

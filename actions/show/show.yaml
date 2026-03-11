@@ -27,7 +27,7 @@ action:
             description: Package containing the component
           attachment:
             type: string
-            description: Chassis section attachment
+            description: Zone attachment
           allocations:
             type: array
             description: Nodes allocated to serve this component

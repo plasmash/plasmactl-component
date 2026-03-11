@@ -1,17 +1,17 @@
 runtime: plugin
 action:
   title: Query Components
-  description: "Query components by chassis or node"
+  description: "Query components by zone or node"
   arguments:
     - name: identifier
       title: Identifier
-      description: Chassis section or node hostname to query
+      description: Zone or node hostname to query
       required: true
   options:
     - name: kind
       shorthand: k
       title: Kind
-      description: Identifier kind to skip auto-detection (chassis, node)
+      description: Identifier kind to skip auto-detection (zone, node)
       type: string
       default: ""
   result:
@@ -33,8 +33,8 @@ action:
             kind:
               type: string
               description: Component kind (applications, services, softwares, etc)
-            chassis:
+            zone:
               type: string
-              description: Chassis path where component is attached
+              description: Zone where component is attached
     required:
       - components

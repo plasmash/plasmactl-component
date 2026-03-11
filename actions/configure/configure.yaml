@@ -1,7 +1,7 @@
 runtime: plugin
 action:
   title: Configure
-  description: "Configure component settings and chassis overrides"
+  description: "Configure component settings and zone overrides"
   arguments:
     - name: key
       title: Key
@@ -37,7 +37,7 @@ action:
     - name: at
       shorthand: a
       title: At
-      description: "Chassis section for override scope (e.g., platform.foundation.cluster). Without --at, operates on component defaults."
+      description: "Zone for override scope (e.g., platform.foundation.cluster). Without --at, operates on component defaults."
       type: string
       default: ""
     - name: vault

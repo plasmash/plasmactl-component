@@ -10,7 +10,7 @@ import (
 // AttachResult is the structured result of component:attach.
 type AttachResult struct {
 	Component string `json:"component"`
-	Chassis   string `json:"chassis"`
+	Zone      string `json:"zone"`
 	Attached  bool   `json:"attached"`
 }
 
@@ -20,7 +20,7 @@ type Attach struct {
 	action.WithTerm
 
 	Component string
-	Chassis   string
+	Zone      string
 	Source    string
 
 	result *AttachResult
@@ -48,10 +48,10 @@ func (a *Attach) Execute() error {
 		return err
 	}
 
-	plays, attached := playbook.AddRole(plays, a.Component, a.Chassis)
+	plays, attached := playbook.AddRole(plays, a.Component, a.Zone)
 	if !attached {
-		a.result = &AttachResult{Component: a.Component, Chassis: a.Chassis, Attached: false}
-		a.Term().Warning().Printfln("Component %s already attached to %s", a.Component, a.Chassis)
+		a.result = &AttachResult{Component: a.Component, Zone: a.Zone, Attached: false}
+		a.Term().Warning().Printfln("Component %s already attached to %s", a.Component, a.Zone)
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (a *Attach) Execute() error {
 		return err
 	}
 
-	a.result = &AttachResult{Component: a.Component, Chassis: a.Chassis, Attached: true}
-	a.Term().Success().Printfln("Attached %s to %s", a.Component, a.Chassis)
+	a.result = &AttachResult{Component: a.Component, Zone: a.Zone, Attached: true}
+	a.Term().Success().Printfln("Attached %s to %s", a.Component, a.Zone)
 	return nil
 }

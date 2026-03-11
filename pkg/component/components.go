@@ -3,7 +3,7 @@ package component
 import (
 	"sort"
 
-	"github.com/plasmash/plasmactl-chassis/pkg/chassis"
+	"github.com/plasmash/plasmactl-topology/pkg/topology"
 )
 
 // Components is a collection of Component.
@@ -50,24 +50,24 @@ func (cs Components) ByLayer(layer string) Components {
 	return result
 }
 
-// Attachments returns a map of component name to chassis paths.
+// Attachments returns a map of component name to zones.
 // Unlike node allocations, component attachments don't use distribution -
 // they are explicit bindings defined in playbooks.
 //
-// The chassis parameter is provided for API consistency and future use
-// (e.g., validating chassis paths exist, computing inherited attachments).
+// The topology parameter is provided for API consistency and future use
+// (e.g., validating zones exist, computing inherited attachments).
 //
-// Returns: component_name → []chassisPaths
-func (cs Components) Attachments(_ *chassis.Chassis) map[string][]string {
+// Returns: component_name → []zones
+func (cs Components) Attachments(_ *topology.Topology) map[string][]string {
 	result := make(map[string][]string)
 
 	for _, c := range cs {
-		if c.Chassis != "" {
-			result[c.Name] = appendUnique(result[c.Name], c.Chassis)
+		if c.Zone != "" {
+			result[c.Name] = appendUnique(result[c.Name], c.Zone)
 		}
 	}
 
-	// Sort chassis paths for consistent output
+	// Sort zones for consistent output
 	for name := range result {
 		sort.Strings(result[name])
 	}
@@ -75,11 +75,11 @@ func (cs Components) Attachments(_ *chassis.Chassis) map[string][]string {
 	return result
 }
 
-// ForChassis returns components attached to a chassis path or its children.
-func (cs Components) ForChassis(chassisPath string) Components {
+// ForZone returns components attached to a zone or its children.
+func (cs Components) ForZone(zonePath string) Components {
 	var result Components
 	for _, c := range cs {
-		if c.Chassis == chassisPath || chassis.IsDescendantOf(c.Chassis, chassisPath) {
+		if c.Zone == zonePath || topology.IsDescendantOf(c.Zone, zonePath) {
 			result = append(result, c)
 		}
 	}

@@ -48,6 +48,6 @@ action:
             kind:
               type: string
               description: Component kind
-            chassis:
+            zone:
               type: string
-              description: Chassis section this component is distributed to
+              description: Zone this component is distributed to

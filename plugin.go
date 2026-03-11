@@ -76,7 +76,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 		input := a.Input()
 		dryRun := input.Opt("dry-run").(bool)
 		allowOverride := input.Opt("allow-override").(bool)
-		filterByComponentUsage := input.Opt("chassis").(bool)
+		filterByComponentUsage := input.Opt("zone").(bool)
 		timeDepth := input.Opt("time-depth").(string)
 		vaultpass := input.Opt("vault-pass").(string)
 
@@ -201,7 +201,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 
 		att := &attach.Attach{
 			Component: input.Arg("component").(string),
-			Chassis:   input.Arg("chassis").(string),
+			Zone:      input.Arg("zone").(string),
 			Source:    input.Opt("source").(string),
 		}
 		att.SetLogger(log)
@@ -219,7 +219,7 @@ func (p *Plugin) DiscoverActions(_ context.Context) ([]*action.Action, error) {
 
 		det := &detach.Detach{
 			Component: input.Arg("component").(string),
-			Chassis:   input.Arg("chassis").(string),
+			Zone:      input.Arg("zone").(string),
 			Source:    input.Opt("source").(string),
 		}
 		det.SetLogger(log)

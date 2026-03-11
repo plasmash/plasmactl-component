@@ -13,9 +13,9 @@ action:
       description: Allow override committed version by current build value
       type: boolean
       default: false
-    - name: chassis
-      title: Filter by chassis attachments
-      description: Only sync components attached to chassis
+    - name: zone
+      title: Filter by zone attachments
+      description: Only sync components attached to zones
       type: boolean
       default: true
     - name: hide-progress

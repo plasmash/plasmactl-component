@@ -115,10 +115,10 @@ func Save(path string, plays []Play) error {
 	return nil
 }
 
-// AddRole adds the component to the appropriate chassis play
-func AddRole(plays []Play, component, chassis string) ([]Play, bool) {
+// AddRole adds the component to the appropriate zone play
+func AddRole(plays []Play, component, zone string) ([]Play, bool) {
 	for i, play := range plays {
-		if play.Hosts == chassis {
+		if play.Hosts == zone {
 			for _, role := range play.Roles {
 				if role.Name == component {
 					return plays, false // already attached
@@ -129,19 +129,19 @@ func AddRole(plays []Play, component, chassis string) ([]Play, bool) {
 		}
 	}
 
-	// Create new play for this chassis
+	// Create new play for this zone
 	newPlay := Play{
-		Hosts:          chassis,
+		Hosts:          zone,
 		AnyErrorsFatal: true,
 		Roles:          []Role{{Name: component}},
 	}
 	return append(plays, newPlay), true
 }
 
-// RemoveRole removes the component from the chassis play
-func RemoveRole(plays []Play, component, chassis string) ([]Play, bool) {
+// RemoveRole removes the component from the zone play
+func RemoveRole(plays []Play, component, zone string) ([]Play, bool) {
 	for i, play := range plays {
-		if play.Hosts == chassis {
+		if play.Hosts == zone {
 			newRoles := make([]Role, 0, len(play.Roles))
 			found := false
 			for _, role := range play.Roles {

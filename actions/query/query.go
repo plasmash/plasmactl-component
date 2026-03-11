@@ -15,7 +15,7 @@ type ComponentMatch struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	Kind    string `json:"kind"`
-	Chassis string `json:"chassis"`
+	Zone    string `json:"zone"`
 }
 
 // QueryResult is the structured output for component:query
@@ -29,7 +29,7 @@ type Query struct {
 	action.WithTerm
 
 	Identifier string
-	Kind       string // "chassis" or "node" to skip auto-detection
+	Kind       string // "zone" or "node" to skip auto-detection
 
 	result QueryResult
 }
@@ -43,20 +43,20 @@ func (q *Query) Execute() error {
 
 	var matches []componentMatch
 
-	searchChassis := q.Kind == "" || q.Kind == "chassis"
+	searchZone := q.Kind == "" || q.Kind == "zone"
 	searchNode := q.Kind == "" || q.Kind == "node"
 
-	// Try 1: Query by chassis path (attaches: chassis → component)
-	if searchChassis {
+	// Try 1: Query by zone (distributes: zone → component)
+	if searchZone {
 		for _, n := range g.NodesByType("component") {
 			for _, e := range g.EdgesTo(n.Name, "distributes") {
-				chassis := e.From().Name
-				if chassis == q.Identifier || strings.HasPrefix(chassis, q.Identifier+".") {
+				zone := e.From().Name
+				if zone == q.Identifier || strings.HasPrefix(zone, q.Identifier+".") {
 					matches = append(matches, componentMatch{
 						name:    n.Name,
 						version: n.Version,
 						kind:    n.Kind,
-						chassis: chassis,
+						zone:    zone,
 					})
 				}
 			}
@@ -67,21 +67,21 @@ func (q *Query) Execute() error {
 	if searchNode && len(matches) == 0 {
 		nodeNode := g.Node(q.Identifier)
 		if nodeNode != nil && nodeNode.Type == "node" {
-			// Get chassis paths this node serves
-			chassisSet := make(map[string]bool)
+			// Get zones this node serves
+			zoneSet := make(map[string]bool)
 			for _, e := range g.EdgesFrom(nodeNode.Name, "allocates") {
-				chassisSet[e.To().Name] = true
+				zoneSet[e.To().Name] = true
 			}
 
-			// Find components attached to those chassis paths (attaches: chassis → component)
+			// Find components attached to those zones (distributes: zone → component)
 			for _, n := range g.NodesByType("component") {
 				for _, e := range g.EdgesTo(n.Name, "distributes") {
-					if chassisSet[e.From().Name] {
+					if zoneSet[e.From().Name] {
 						matches = append(matches, componentMatch{
 							name:    n.Name,
 							version: n.Version,
 							kind:    n.Kind,
-							chassis: e.From().Name,
+							zone:    e.From().Name,
 						})
 					}
 				}
@@ -108,13 +108,13 @@ func (q *Query) Execute() error {
 			Name:    m.name,
 			Version: m.version,
 			Kind:    m.kind,
-			Chassis: m.chassis,
+			Zone:    m.zone,
 		})
 	}
 
 	// Output
 	for _, m := range matches {
-		q.Term().Printfln("%s\t%s\t%s", m.DisplayName(), m.kind, m.chassis)
+		q.Term().Printfln("%s\t%s\t%s", m.DisplayName(), m.kind, m.zone)
 	}
 
 	return nil
@@ -129,7 +129,7 @@ type componentMatch struct {
 	name    string
 	version string
 	kind    string
-	chassis string
+	zone    string
 }
 
 // DisplayName returns the component formatted as "name@version".

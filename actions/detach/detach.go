@@ -10,7 +10,7 @@ import (
 // DetachResult is the structured result of component:detach.
 type DetachResult struct {
 	Component string `json:"component"`
-	Chassis   string `json:"chassis"`
+	Zone      string `json:"zone"`
 	Detached  bool   `json:"detached"`
 }
 
@@ -20,7 +20,7 @@ type Detach struct {
 	action.WithTerm
 
 	Component string
-	Chassis   string
+	Zone      string
 	Source    string
 
 	result *DetachResult
@@ -48,10 +48,10 @@ func (d *Detach) Execute() error {
 		return err
 	}
 
-	plays, detached := playbook.RemoveRole(plays, d.Component, d.Chassis)
+	plays, detached := playbook.RemoveRole(plays, d.Component, d.Zone)
 	if !detached {
-		d.result = &DetachResult{Component: d.Component, Chassis: d.Chassis, Detached: false}
-		d.Term().Warning().Printfln("Component %s not attached to %s", d.Component, d.Chassis)
+		d.result = &DetachResult{Component: d.Component, Zone: d.Zone, Detached: false}
+		d.Term().Warning().Printfln("Component %s not attached to %s", d.Component, d.Zone)
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (d *Detach) Execute() error {
 		return err
 	}
 
-	d.result = &DetachResult{Component: d.Component, Chassis: d.Chassis, Detached: true}
-	d.Term().Success().Printfln("Detached %s from %s", d.Component, d.Chassis)
+	d.result = &DetachResult{Component: d.Component, Zone: d.Zone, Detached: true}
+	d.Term().Success().Printfln("Detached %s from %s", d.Component, d.Zone)
 	return nil
 }

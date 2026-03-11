@@ -1,5 +1,5 @@
 // Package component provides types and operations for managing platform components.
-// Components are logical units (applications, services, flows, etc.) that attach to chassis paths.
+// Components are logical units (applications, services, flows, etc.) that attach to zones.
 package component
 
 import (
@@ -18,7 +18,7 @@ type Component struct {
 	Layer    string // Layer (e.g., "interaction", "foundation", "cognition")
 	Version  string // Component version (git commit hash from meta/plasma.yaml)
 	Playbook string // Path to playbook where component is defined
-	Chassis  string // Chassis path where component is attached
+	Zone     string // Zone where component is attached
 }
 
 // FormatVersion returns the version or "-" if empty.
@@ -59,11 +59,11 @@ func readVersion(metaPath string) string {
 	return meta.Plasma.Version
 }
 
-// Attachment represents a component attached to a chassis path.
+// Attachment represents a component attached to a zone.
 type Attachment struct {
 	Component string
 	Playbook  string
-	Chassis   string
+	Zone      string
 }
 
 // LoadFromPlaybooks discovers components from layer playbooks.
@@ -139,7 +139,7 @@ func LoadFromPlaybooks(dir string) (Components, error) {
 						Layer:    layer,
 						Version:  version,
 						Playbook: playbookPath,
-						Chassis:  play.Hosts,
+						Zone:     play.Hosts,
 					})
 				}
 			}
@@ -161,7 +161,7 @@ func extractKind(name string) string {
 
 // LoadFromFilesystem discovers ALL components from the composed output.
 // It scans the merged source directory for components with meta/plasma.yaml files.
-// These components may or may not be attached to chassis paths.
+// These components may or may not be attached to zones.
 func LoadFromFilesystem(dir string) (Components, error) {
 	srcDir := filepath.Join(dir, model.MergedSrcDir)
 	return LoadFromPath(srcDir)
@@ -257,10 +257,10 @@ func LoadFromPath(basePath string) (Components, error) {
 	return components, nil
 }
 
-// LoadAttachments scans playbooks for component attachments to chassis paths.
-// If chassisPath is empty, returns all attachments.
-// If chassisPath is specified, returns attachments for that path and its children.
-func LoadAttachments(dir, chassisPath string) ([]Attachment, error) {
+// LoadAttachments scans playbooks for component attachments to zones.
+// If zonePath is empty, returns all attachments.
+// If zonePath is specified, returns attachments for that zone and its children.
+func LoadAttachments(dir, zonePath string) ([]Attachment, error) {
 	var attachments []Attachment
 
 	srcDir := filepath.Join(dir, "src")
@@ -292,9 +292,9 @@ func LoadAttachments(dir, chassisPath string) ([]Attachment, error) {
 		}
 
 		for _, play := range plays {
-			// Match chassis path filter
-			if chassisPath != "" {
-				if play.Hosts != chassisPath && !strings.HasPrefix(play.Hosts, chassisPath+".") {
+			// Match zone filter
+			if zonePath != "" {
+				if play.Hosts != zonePath && !strings.HasPrefix(play.Hosts, zonePath+".") {
 					continue
 				}
 			}
@@ -313,7 +313,7 @@ func LoadAttachments(dir, chassisPath string) ([]Attachment, error) {
 					attachments = append(attachments, Attachment{
 						Component: roleName,
 						Playbook:  playbookPath,
-						Chassis:   play.Hosts,
+						Zone:      play.Hosts,
 					})
 				}
 			}

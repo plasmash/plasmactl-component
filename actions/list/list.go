@@ -15,7 +15,7 @@ type ComponentListItem struct {
 	Version string `json:"version,omitempty"`
 	Layer   string `json:"layer"`
 	Kind    string `json:"kind"`
-	Chassis string `json:"chassis,omitempty"`
+	Zone    string `json:"zone,omitempty"`
 }
 
 // ListResult is the structured output for component:list
@@ -52,15 +52,15 @@ func (l *List) Execute() error {
 
 	var items []ComponentListItem
 	for _, n := range allNodes {
-		// Get chassis attachment (attaches: chassis → component)
-		chassis := ""
+		// Get zone attachment (distributes: zone → component)
+		zone := ""
 		attachEdges := g.EdgesTo(n.Name, "distributes")
 		if len(attachEdges) > 0 {
-			chassis = attachEdges[0].From().Name
+			zone = attachEdges[0].From().Name
 		}
 
 		// Filter: attached only (default) vs all
-		if !l.All && chassis == "" {
+		if !l.All && zone == "" {
 			continue
 		}
 
@@ -74,7 +74,7 @@ func (l *List) Execute() error {
 			Version: n.Version,
 			Layer:   n.Layer,
 			Kind:    n.Kind,
-			Chassis: chassis,
+			Zone:    zone,
 		})
 	}
 
@@ -107,19 +107,19 @@ func (l *List) Execute() error {
 	return nil
 }
 
-// printTree prints components as a tree with chassis paths and nodes
+// printTree prints components as a tree with zones and nodes
 func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) error {
-	// Build chassis path to nodes map from graph
-	chassisToNodes := make(map[string][]string)
+	// Build zone to nodes map from graph
+	zoneToNodes := make(map[string][]string)
 	for _, n := range g.NodesByType("node") {
 		for _, e := range g.EdgesFrom(n.Name, "allocates") {
-			chassisToNodes[e.To().Name] = append(chassisToNodes[e.To().Name], n.Name)
+			zoneToNodes[e.To().Name] = append(zoneToNodes[e.To().Name], n.Name)
 		}
 	}
 
-	// Sort nodes for each chassis path
-	for k := range chassisToNodes {
-		sort.Strings(chassisToNodes[k])
+	// Sort nodes for each zone
+	for k := range zoneToNodes {
+		sort.Strings(zoneToNodes[k])
 	}
 
 	// Group components by kind
@@ -154,18 +154,18 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 
 			l.Term().Printfln("%s🧩 %s", compPrefix, component.FormatDisplayName(comp.Name, comp.Version))
 
-			// Skip chassis/node detail for unattached components (--all mode)
-			if comp.Chassis == "" {
+			// Skip zone/node detail for unattached components (--all mode)
+			if comp.Zone == "" {
 				continue
 			}
 
-			// Get nodes that serve this component's chassis path
-			nodes := chassisToNodes[comp.Chassis]
-			totalChildren := 1 + len(nodes) // chassis path + nodes
+			// Get nodes that serve this component's zone
+			nodes := zoneToNodes[comp.Zone]
+			totalChildren := 1 + len(nodes) // zone + nodes
 
 			childIdx := 0
 
-			// Print chassis path
+			// Print zone
 			childIdx++
 			isLast := childIdx == totalChildren
 			var childPrefix string
@@ -174,7 +174,7 @@ func (l *List) printTree(items []ComponentListItem, g *graph.PlatformGraph) erro
 			} else {
 				childPrefix = compIndent + "├── "
 			}
-			l.Term().Printfln("%s📍 %s", childPrefix, comp.Chassis)
+			l.Term().Printfln("%s📍 %s", childPrefix, comp.Zone)
 
 			// Print nodes
 			for _, n := range nodes {
