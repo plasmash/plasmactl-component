@@ -10,7 +10,7 @@ require (
 	github.com/launchrctl/compose v0.16.0
 	github.com/launchrctl/keyring v0.9.0
 	github.com/launchrctl/launchr v0.22.0
-	github.com/plasmash/plasmactl-chassis v1.0.20
+	github.com/plasmash/plasmactl-topology v1.0.20
 	github.com/pterm/pterm v0.12.82
 	github.com/sosedoff/ansible-vault-go v0.2.0
 	github.com/stevenle/topsort v0.2.0
@@ -167,6 +167,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace github.com/plasmash/plasmactl-topology => ../plasmactl-chassis
 
 replace github.com/plasmash/plasmactl-model => ../plasmactl-model
 
