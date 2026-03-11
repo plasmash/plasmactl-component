@@ -1,17 +1,17 @@
 # plasmactl-component
 
-A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning, dependencies, and chassis attachments in Plasma platforms.
+A [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages component versioning, dependencies, and zone attachments in Plasma platforms.
 
 ## Overview
 
-`plasmactl-component` provides tools for managing Plasma platform components including automatic versioning, dependency management, configuration, and chassis attachments.
+`plasmactl-component` provides tools for managing Plasma platform components including automatic versioning, dependency management, configuration, and zone attachments.
 
 ## Features
 
 - **Version Bumping**: Automatically update component versions based on git changes
 - **Version Syncing**: Propagate version changes through the dependency tree
 - **Dependency Management**: kubectl-style add/remove/replace operations on dependencies
-- **Chassis Attachments**: Attach and detach components from chassis sections
+- **Zone Attachments**: Attach and detach components from zones
 - **Configuration**: Manage component variables with vault encryption support
 
 ## Commands
@@ -88,7 +88,7 @@ plasmactl component:attach interaction.applications.connect platform.interaction
 Options:
 - `-s, --source`: Source directory containing layer playbooks
 
-This modifies the layer playbook (e.g., `interaction/interaction.yaml`) to add the component role under the specified chassis host.
+This modifies the layer playbook (e.g., `interaction/interaction.yaml`) to add the component role under the specified zone host.
 
 ### component:detach
 
@@ -197,7 +197,7 @@ plasmactl model:compose
 # 6. Manage dependencies
 plasmactl component:depend mycomponent newdep olddep-
 
-# 7. Attach to chassis
+# 7. Attach to zone
 plasmactl component:attach interaction.applications.new platform.interaction.observability
 ```
 
@@ -205,14 +205,14 @@ plasmactl component:attach interaction.applications.new platform.interaction.obs
 
 | Plugin | Command | Purpose |
 |--------|---------|---------|
-| plasmactl-chassis | `chassis:list` | List available chassis sections |
-| plasmactl-chassis | `chassis:show` | Show chassis section details |
+| plasmactl-topology | `topology:list` | List available zones |
+| plasmactl-topology | `topology:show` | Show zone details |
 | plasmactl-model | `model:compose` | Compose packages after version updates |
 
 ## Documentation
 
 - [Plasmactl](https://github.com/plasmash/plasmactl) - Main CLI tool
-- [plasmactl-chassis](https://github.com/plasmash/plasmactl-chassis) - Chassis management
+- [plasmactl-topology](https://github.com/plasmash/plasmactl-topology) - Topology management
 - [Plasma Platform](https://plasma.sh) - Platform documentation
 
 ## License

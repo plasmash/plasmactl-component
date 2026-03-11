@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-plasmactl-component is a Go [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages Plasma platform component versioning, dependencies, and chassis attachments. It registers 9 CLI actions (`component:bump`, `component:sync`, `component:depend`, `component:configure`, `component:attach`, `component:detach`, `component:query`, `component:list`, `component:show`).
+plasmactl-component is a Go [Launchr](https://github.com/launchrctl/launchr) plugin for [Plasmactl](https://github.com/plasmash/plasmactl) that manages Plasma platform component versioning, dependencies, and zone attachments. It registers 9 CLI actions (`component:bump`, `component:sync`, `component:depend`, `component:configure`, `component:attach`, `component:detach`, `component:query`, `component:list`, `component:show`).
 
 ## Build, Test, and Lint Commands
 
@@ -37,7 +37,7 @@ All actions receive a logger and terminal via `getLogger()` helper and return st
 
 - **`actions/`** — Each subdirectory is a CLI action. The YAML defines args/flags, the Go file implements logic. Actions are: `attach`, `bump`, `configure`, `depend`, `detach`, `list`, `query`, `show`, `sync`.
 - **`pkg/component/`** — Public component abstraction: `Component` struct, loading from playbooks/filesystem, attachments, version reading from `meta/plasma.yaml`.
-- **`internal/playbook/`** — Ansible playbook YAML manipulation: load, save, add/remove roles under chassis hosts. Supports both simple string and extended map role formats.
+- **`internal/playbook/`** — Ansible playbook YAML manipulation: load, save, add/remove roles under zone hosts. Supports both simple string and extended map role formats.
 - **`internal/repository/`** — Git operations via go-git: `Bumper` creates version bump commits, `GetCommits()` identifies changed files. Has tests covering regular repos and git worktrees.
 - **`internal/sync/`** — Version propagation engine: `Inventory` builds dependency graph (semantic + build deps), uses topological sorting for correct propagation order. `FilesCrawler` walks filesystem, `Timeline` tracks version changes.
 
@@ -46,7 +46,7 @@ All actions receive a logger and terminal via `getLogger()` helper and return st
 - **Component naming**: `{layer}.{kind}.{name}` (e.g., `interaction.applications.dashboards`)
 - **Versions**: 13-char git commit hash stored in `meta/plasma.yaml` under `plasma.version`
 - **Dependencies**: Semantic deps in `tasks/dependencies.yaml`, build deps in `tasks/main.yaml`
-- **Chassis attachments**: Components are roles in layer playbooks (`src/{layer}/{layer}.yaml`) under chassis host entries
+- **Zone attachments**: Components are roles in layer playbooks (`src/{layer}/{layer}.yaml`) under zone host entries
 
 ### Component Lifecycle
 
@@ -68,7 +68,7 @@ Uses golangci-lint v2.5.0 with: dupl, errcheck, goconst, gosec, govet, ineffassi
 - `launchrctl/launchr` — Plugin framework, action system, logger, terminal
 - `launchrctl/compose` — Package composition and merging
 - `plasmash/plasmactl-platform` — Platform graph for component queries
-- `plasmash/plasmactl-chassis` — Chassis path abstractions
+- `plasmash/plasmactl-topology` — Topology abstractions
 - `go-git/go-git` — Pure Go git operations
 - `sosedoff/ansible-vault-go` — Vault encryption for secrets
 - `stevenle/topsort` — Topological sorting for dependency propagation
