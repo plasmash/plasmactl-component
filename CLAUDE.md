@@ -68,7 +68,7 @@ Uses golangci-lint v2.5.0 with: dupl, errcheck, goconst, gosec, govet, ineffassi
 - `launchrctl/launchr` — Plugin framework, action system, logger, terminal
 - `launchrctl/compose` — Package composition and merging
 - `plasmash/plasmactl-platform` — Platform graph for component queries
-- `plasmash/plasmactl-topology` — Topology abstractions
+- `plasmash/plasmactl-zone` — Topology abstractions
 - `go-git/go-git` — Pure Go git operations
 - `sosedoff/ansible-vault-go` — Vault encryption for secrets
 - `stevenle/topsort` — Topological sorting for dependency propagation

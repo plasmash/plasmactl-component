@@ -205,14 +205,14 @@ plasmactl component:attach interaction.applications.new platform.interaction.obs
 
 | Plugin | Command | Purpose |
 |--------|---------|---------|
-| plasmactl-topology | `topology:list` | List available zones |
-| plasmactl-topology | `topology:show` | Show zone details |
+| plasmactl-zone | `zone:list` | List available zones |
+| plasmactl-zone | `zone:show` | Show zone details |
 | plasmactl-model | `model:compose` | Compose packages after version updates |
 
 ## Documentation
 
 - [Plasmactl](https://github.com/plasmash/plasmactl) - Main CLI tool
-- [plasmactl-topology](https://github.com/plasmash/plasmactl-topology) - Topology management
+- [plasmactl-zone](https://github.com/plasmash/plasmactl-zone) - Topology management
 - [Plasma Platform](https://plasma.sh) - Platform documentation
 
 ## License

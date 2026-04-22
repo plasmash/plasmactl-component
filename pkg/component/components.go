@@ -3,7 +3,7 @@ package component
 import (
 	"sort"
 
-	"github.com/plasmash/plasmactl-topology/pkg/topology"
+	"github.com/plasmash/plasmactl-zone/pkg/topology"
 )
 
 // Components is a collection of Component.
