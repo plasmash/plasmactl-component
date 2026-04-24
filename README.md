@@ -78,7 +78,7 @@ Options:
 
 ### component:attach
 
-Attach a component to a chassis section:
+Attach a component to a zone:
 
 ```bash
 plasmactl component:attach interaction.applications.dashboards platform.interaction.observability
@@ -92,7 +92,7 @@ This modifies the layer playbook (e.g., `interaction/interaction.yaml`) to add t
 
 ### component:detach
 
-Detach a component from a chassis section:
+Detach a component from a zone:
 
 ```bash
 plasmactl component:detach interaction.applications.dashboards platform.interaction.observability
