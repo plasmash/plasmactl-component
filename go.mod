@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/plasmash/plasmactl-model v0.0.0-00010101000000-000000000000
+	github.com/plasmash/plasmactl-model v1.6.0
 	github.com/plasmash/plasmactl-platform v1.5.1
 )
 
