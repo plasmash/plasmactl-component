@@ -90,23 +90,36 @@ func (b *Bump) Execute() error {
 	return bumper.Commit()
 }
 
-func (b *Bump) getComponent(path string) *sync.Component {
+// componentFromPath resolves the component a changed file belongs to, or nil if
+// the file does not map to a versionable component.
+//
+// In the v2 monorepo, components live under src/ and git reports repo-root-relative
+// paths (src/<layer>/<kind>/<role>/...). Strip the src/ prefix for parsing and use
+// it as the lookup root so the component meta resolves.
+func componentFromPath(path string) *sync.Component {
 	if !isVersionableFile(path) {
 		return nil
 	}
 
-	platform, kind, role, err := sync.ProcessComponentPath(path)
+	prefix := "."
+	rel := path
+	if stripped := strings.TrimPrefix(path, "src/"); stripped != path {
+		rel = stripped
+		prefix = "src"
+	}
+
+	platform, kind, role, err := sync.ProcessComponentPath(rel)
 	if err != nil || (platform == "" || kind == "" || role == "") {
 		return nil
 	}
 
 	// skip actions dir from triggering bump.
-	componentActionsDir := filepath.Join(platform, kind, "roles", role, "actions")
-	if strings.Contains(path, componentActionsDir) {
+	componentActionsDir := filepath.Join(platform, kind, role, "actions")
+	if strings.Contains(rel, componentActionsDir) {
 		return nil
 	}
 
-	component, err := sync.NewComponent(sync.PrepareComponentName(platform, kind, role), ".")
+	component, err := sync.NewComponent(sync.PrepareComponentName(platform, kind, role), prefix)
 	if err != nil {
 		return nil
 	}
@@ -124,7 +137,7 @@ func (b *Bump) collectComponents(commits []*repository.Commit) map[string]map[st
 	for _, c := range commits {
 		hash := c.Hash[:13]
 		for _, path := range c.Files {
-			component := b.getComponent(path)
+			component := componentFromPath(path)
 			if component == nil {
 				continue
 			}
