@@ -13,10 +13,10 @@ import (
 	async "sync"
 	"time"
 
-	"github.com/launchrctl/compose/compose"
 	"github.com/launchrctl/keyring"
 	"github.com/launchrctl/launchr"
 	"github.com/launchrctl/launchr/pkg/action"
+	"github.com/plasmash/plasmactl-model/pkg/model"
 	"github.com/pterm/pterm"
 
 	"github.com/plasmash/plasmactl-component/internal/sync"
@@ -213,7 +213,7 @@ func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.Ord
 	componentsMap := make(map[string]*sync.OrderedMap[*sync.Component])
 	packagePathMap := make(map[string]string)
 
-	plasmaCompose, err := compose.Lookup(os.DirFS(s.DomainDir))
+	plasmaCompose, err := model.Lookup(os.DirFS(s.DomainDir))
 	if err != nil {
 		return nil, nil, err
 	}
