@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -30,7 +31,14 @@ func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
 		}
 	}
 
-	filesCrawler := sync.NewFilesCrawler(s.DomainDir)
+	// Crawl from the layers root (<domain>/src) so that paths start with the
+	// layer — the same shape as the merged model (BuildDir). Git lookups get
+	// the src/ prefix back in findVariableUpdateTime.
+	srcRoot, err := sync.SourceRoot(s.DomainDir)
+	if err != nil {
+		return err
+	}
+	filesCrawler := sync.NewFilesCrawler(srcRoot)
 	groupedFiles, err := filesCrawler.FindVarsFiles("")
 	if err != nil {
 		return fmt.Errorf("can't get vars files > %w", err)
@@ -41,8 +49,9 @@ func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
 		varsFiles = append(varsFiles, paths...)
 	}
 
-	repo, err := git.PlainOpenWithOptions(s.DomainDir, &git.PlainOpenOptions{EnableDotGitCommonDir: true})
-	if err != nil {
+	// Validate the repository once; every worker opens its own handle below,
+	// because go-git repositories are not safe for concurrent use.
+	if _, err = git.PlainOpenWithOptions(s.DomainDir, &git.PlainOpenOptions{EnableDotGitCommonDir: true}); err != nil {
 		return fmt.Errorf("%s - %w", s.DomainDir, err)
 	}
 
@@ -63,6 +72,16 @@ func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
 
 	for i := 0; i < maxWorkers; i++ {
 		go func(workerID int) {
+			// One repository handle per worker: go-git is not goroutine-safe.
+			repo, errOpen := git.PlainOpenWithOptions(s.DomainDir, &git.PlainOpenOptions{EnableDotGitCommonDir: true})
+			if errOpen != nil {
+				select {
+				case errorChan <- fmt.Errorf("worker %d: open repository %s > %w", workerID, s.DomainDir, errOpen):
+					cancel()
+				default:
+				}
+				return
+			}
 			for {
 				select {
 				case <-ctx.Done():
@@ -71,13 +90,13 @@ func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
 					if !ok {
 						return
 					}
-					if err = s.findVariableUpdateTime(varsFile, buildInv, repo, &mx); err != nil {
+					if errFile := s.findVariableUpdateTime(varsFile, buildInv, repo, &mx); errFile != nil {
 						if p != nil {
 							_, _ = p.Stop()
 						}
 
 						select {
-						case errorChan <- fmt.Errorf("worker %d error processing %s: %w", workerID, varsFile, err):
+						case errorChan <- fmt.Errorf("worker %d error processing %s: %w", workerID, varsFile, errFile):
 							cancel()
 						default:
 						}
@@ -115,6 +134,11 @@ func (s *Sync) populateTimelineVars(buildInv *sync.Inventory) error {
 }
 
 func (s *Sync) findVariableUpdateTime(varsFile string, inv *sync.Inventory, repo *git.Repository, mx *async.Mutex) error {
+	// varsFile is relative to the layers root (<domain>/src) and matches the
+	// merged model as-is; the git tree is rooted at the repository, so the
+	// src/ prefix goes back for commit lookups. Git paths always use "/".
+	gitPath := path.Join(sync.SrcDir, varsFile)
+
 	ref, err := repo.Head()
 	if err != nil {
 		return fmt.Errorf("can't get HEAD ref > %w", err)
@@ -170,10 +194,10 @@ func (s *Sync) findVariableUpdateTime(varsFile string, inv *sync.Inventory, repo
 			return storer.ErrStop
 		}
 
-		file, errIt := c.File(varsFile)
+		file, errIt := c.File(gitPath)
 		if errIt != nil {
 			if !errors.Is(errIt, object.ErrFileNotFound) {
-				return fmt.Errorf("opening file %s in commit %s > %w", varsFile, c.Hash, errIt)
+				return fmt.Errorf("opening file %s in commit %s > %w", gitPath, c.Hash, errIt)
 			}
 
 			return storer.ErrStop
