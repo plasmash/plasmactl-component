@@ -239,7 +239,10 @@ func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.Ord
 	for i := 0; i < maxWorkers; i++ {
 		go func() {
 			for repo := range workChan {
-				components, errRes := s.getComponentsMapFrom(repo["path"])
+				// Inventory walks the layers root (<checkout>/src for v2, the
+				// checkout itself for v1); git lookups stay at the checkout.
+				invRoot, _ := sync.LayersRoot(repo["path"])
+				components, errRes := s.getComponentsMapFrom(invRoot)
 				if errRes != nil {
 					errorChan <- errRes
 					return
@@ -332,9 +335,11 @@ func (s *Sync) getComponentsMaps(buildInv *sync.Inventory) (map[string]*sync.Ord
 
 		var sameVersionNamespaces []string
 		for conflictingNamespace := range conflicts {
-			conflictEntity, err := sync.NewComponent(componentName, packagePathMap[conflictingNamespace])
-			if err != nil {
-				return nil, nil, err
+			// Use the discovered component — it knows its real directory
+			// (src/ or roles/ layouts); one rebuilt from the name would not.
+			conflictEntity, okC := componentsMap[conflictingNamespace].Get(componentName)
+			if !okC {
+				continue
 			}
 
 			baseVersion, _, debug, err := conflictEntity.GetBaseVersion()
