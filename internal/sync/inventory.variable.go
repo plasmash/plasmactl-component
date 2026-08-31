@@ -11,6 +11,10 @@ import (
 	"sync"
 )
 
+// componentPathParts is the number of leading path segments that identify a
+// component directory in the v2 layout: <layer>/<kind>/<name>.
+const componentPathParts = 3
+
 // IsVaultFile is helper to determine if file is vault file.
 func IsVaultFile(path string) bool {
 	return filepath.Base(path) == vaultFile
@@ -567,7 +571,7 @@ func (i *Inventory) processGroupFiles(group string, files []string, groupKeys ma
 		for filePath, lines := range linesWithVariablesByFile {
 			// Check if the file path prefix has been processed for the key
 
-			filePrefix := getPathPrefix(filePath, 4)
+			filePrefix := getPathPrefix(filePath, componentPathParts)
 			mx.Lock()
 			isProcessed := isProcessedFile(keyGroup, filePrefix, reverseDependencyMap[key])
 			mx.Unlock()
@@ -607,7 +611,7 @@ func combineKeys(current, platform map[string]bool) map[string]bool {
 func isProcessedFile(key, filePrefix string, reverseDependencyMap map[string][]string) bool {
 	if filePaths, exists := reverseDependencyMap[key]; exists {
 		for _, path := range filePaths {
-			if getPathPrefix(path, 4) == filePrefix {
+			if getPathPrefix(path, componentPathParts) == filePrefix {
 				return true
 			}
 		}
