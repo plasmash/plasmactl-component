@@ -6,7 +6,20 @@ import (
 	"strings"
 )
 
-const roles = "roles"
+// The crawler understands the v2 layout only, relative to a layers root
+// (<domain>/src or the merged model):
+//
+//	<layer>/variables/<group>/{vars.yaml,vault.yaml}
+//	<layer>/<kind>/<name>/templates/**/*.j2
+//	<layer>/<kind>/<name>/tasks/configuration.yaml
+//
+// v1 shapes (group_vars/, roles/) never reach sync: model:compose strips them
+// while building the merged model, and the domain is v2 by definition.
+const (
+	variablesDir = "variables"
+	templatesDir = "templates"
+	tasksDir     = "tasks"
+)
 
 // FilesCrawler is a type that represents a crawler for components in a given directory.
 type FilesCrawler struct {
@@ -20,13 +33,16 @@ func NewFilesCrawler(directory string) *FilesCrawler {
 	}
 }
 
-// FindVarsFiles return list of variables files in platform.
-// If platform is empty, search across all.
+// FindVarsFiles returns variables files grouped by layer:
+// <layer>/variables/<group>/{vars.yaml,vault.yaml}.
+// If platform (layer) is empty, search across all layers.
 func (cr *FilesCrawler) FindVarsFiles(platform string) (map[string][]string, error) {
-	partsCount := 3
-	platformPart := 0
-	rolePart := 0
-	kindPart := 1
+	// parts: [layer, variables, group, file]
+	const (
+		partsCount   = 3
+		platformPart = 0
+		kindPart     = 1
+	)
 
 	files := make(map[string][]string)
 	dir := filepath.Join(cr.rootDir, platform)
@@ -49,10 +65,8 @@ func (cr *FilesCrawler) FindVarsFiles(platform string) (map[string][]string, err
 		}
 
 		parts := strings.Split(relPath, "/")
-		if len(parts) > partsCount && (platform == "" || parts[platformPart] == platform) &&
-			(rolePart == 0 || parts[rolePart] == roles) {
-
-			if parts[kindPart] == "group_vars" {
+		if len(parts) > partsCount && (platform == "" || parts[platformPart] == platform) {
+			if parts[kindPart] == variablesDir {
 				filename := filepath.Base(path)
 				if filename == "vars.yaml" || filename == vaultFile {
 					files[parts[platformPart]] = append(files[parts[platformPart]], relPath)
@@ -66,13 +80,17 @@ func (cr *FilesCrawler) FindVarsFiles(platform string) (map[string][]string, err
 	return files, err
 }
 
-// FindComponentsFiles return list of components files in platform.
-// If platform is empty, search across all.
+// FindComponentsFiles returns component source files grouped by layer:
+// <layer>/<kind>/<name>/templates/**/*.j2 and
+// <layer>/<kind>/<name>/tasks/configuration.yaml.
+// If platform (layer) is empty, search across all layers.
 func (cr *FilesCrawler) FindComponentsFiles(platform string) (map[string][]string, error) {
-	partsCount := 4
-	platformPart := 0
-	rolePart := 2
-	kindPart := 4
+	// parts: [layer, kind, name, templates|tasks, file...]
+	const (
+		partsCount   = 3
+		platformPart = 0
+		kindPart     = 3
+	)
 
 	files := make(map[string][]string)
 	dir := filepath.Join(cr.rootDir, platform)
@@ -95,17 +113,15 @@ func (cr *FilesCrawler) FindComponentsFiles(platform string) (map[string][]strin
 		}
 
 		parts := strings.Split(relPath, "/")
-		if len(parts) > partsCount && (platform == "" || parts[platformPart] == platform) &&
-			(rolePart == 0 || parts[rolePart] == roles) {
-
-			if parts[kindPart] == "templates" {
+		if len(parts) > partsCount && (platform == "" || parts[platformPart] == platform) {
+			if parts[kindPart] == templatesDir {
 				ext := filepath.Ext(path)
 				if ext != ".j2" {
 					return nil
 				}
 				files[parts[platformPart]] = append(files[parts[platformPart]], relPath)
 
-			} else if parts[kindPart] == "tasks" && filepath.Base(path) == "configuration.yaml" {
+			} else if parts[kindPart] == tasksDir && filepath.Base(path) == "configuration.yaml" {
 				files[parts[platformPart]] = append(files[parts[platformPart]], relPath)
 			}
 		}

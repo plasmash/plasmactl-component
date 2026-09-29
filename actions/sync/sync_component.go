@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path"
 	"runtime"
 	async "sync"
 	"time"
@@ -229,6 +230,10 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 		return fmt.Errorf("%s - %w", gitPath, err)
 	}
 
+	// Commit trees are repository-rooted while components are layers-rooted:
+	// a v2 checkout needs the src/ prefix back for git lookups.
+	_, gitPrefix := sync.LayersRoot(gitPath)
+
 	groups, commitsMap, err := collectComponentsCommits(repo, s.TimeDepth)
 	if err != nil {
 		return fmt.Errorf("collect components commits > %w", err)
@@ -242,6 +247,15 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 
 	for w := 0; w < maxWorkers; w++ {
 		go func() {
+			// One repository handle per worker: go-git is not goroutine-safe.
+			wrepo, errOpen := git.PlainOpenWithOptions(gitPath, &git.PlainOpenOptions{EnableDotGitCommonDir: true})
+			if errOpen != nil {
+				select {
+				case errorChan <- fmt.Errorf("open repository %s > %w", gitPath, errOpen):
+				default:
+				}
+				return
+			}
 			for {
 				select {
 				case <-ctx.Done():
@@ -250,13 +264,13 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 					if !ok {
 						return
 					}
-					if err = s.processComponent(c, groups, commitsMap, repo, mx); err != nil {
+					if errComp := s.processComponent(c, groups, commitsMap, wrepo, gitPrefix, mx); errComp != nil {
 						if p != nil {
 							_, _ = p.Stop()
 						}
 
 						select {
-						case errorChan <- err:
+						case errorChan <- errComp:
 						default:
 						}
 					}
@@ -295,7 +309,7 @@ func (s *Sync) findComponentsChangeTime(ctx context.Context, namespaceComponents
 	return nil
 }
 
-func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, repo *git.Repository, mx *async.Mutex) error {
+func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.OrderedMap[*CommitsGroup], commitsMap map[string]map[string]string, repo *git.Repository, gitPrefix string, mx *async.Mutex) error {
 	buildComponent, err := sync.NewComponent(component.GetName(), s.BuildDir)
 	if err != nil {
 		return err
@@ -324,7 +338,7 @@ func (s *Sync) processComponent(component *sync.Component, commitsGroups *sync.O
 		return fmt.Errorf("can't get HEAD commit object > %w", err)
 	}
 
-	componentMetaPath := component.BuildMetaPath()
+	componentMetaPath := path.Join(gitPrefix, component.BuildMetaPath())
 
 	file, err := headCommit.File(componentMetaPath)
 	if err != nil {

@@ -37,9 +37,12 @@ func ConvertNameToPath(name string) (string, error) {
 type Component struct {
 	name       string
 	pathPrefix string
-	platform   string
-	kind       string
-	role       string
+	// dir is the component directory relative to the layers root; a v1
+	// layout keeps the roles/ infix here, which the name cannot encode.
+	dir      string
+	platform string
+	kind     string
+	role     string
 }
 
 // NewComponent returns new [Component] instance.
@@ -53,6 +56,7 @@ func NewComponent(name, prefix string) (*Component, error) {
 	return &Component{
 		name:       name,
 		pathPrefix: prefix,
+		dir:        filepath.Join(parts[0], parts[1], parts[2]),
 		platform:   parts[0],
 		kind:       parts[1],
 		role:       parts[2],
@@ -92,11 +96,11 @@ func (c *Component) getRealMetaPath() string {
 	return filepath.Join(c.pathPrefix, meta)
 }
 
-// BuildMetaPath returns common path to component meta.
+// BuildMetaPath returns the path to the component meta relative to the layers
+// root, honoring the directory the component was discovered at (a v1 layout
+// keeps the roles/ infix there, which the name alone cannot encode).
 func (c *Component) BuildMetaPath() string {
-	parts := strings.Split(c.GetName(), ".")
-	meta := filepath.Join(parts[0], parts[1], parts[2], "meta", "plasma.yaml")
-	return meta
+	return filepath.Join(c.dir, "meta", "plasma.yaml")
 }
 
 // GetVersion retrieves the version of the component from the plasma.yaml
@@ -219,6 +223,9 @@ func BuildComponentFromPath(path, pathPrefix string) *Component {
 	if err != nil {
 		return nil
 	}
+	// Remember where the component was actually found.
+	parts := strings.Split(path, "/")
+	component.dir = filepath.Join(parts[:ComponentDirParts(parts)]...)
 	if !component.IsValidComponent() {
 		return nil
 	}
@@ -228,8 +235,9 @@ func BuildComponentFromPath(path, pathPrefix string) *Component {
 // ProcessComponentPath splits component path onto platform, kind and role.
 func ProcessComponentPath(path string) (string, string, string, error) {
 	parts := strings.Split(path, "/")
-	if len(parts) >= 3 {
-		return parts[0], parts[1], parts[2], nil
+	n := ComponentDirParts(parts) // 3 (v2) or 4 (v1 with roles/)
+	if len(parts) >= n {
+		return parts[0], parts[1], parts[n-1], nil
 	}
 
 	return "", "", "", errors.New("empty component path")
