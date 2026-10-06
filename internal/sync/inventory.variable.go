@@ -642,7 +642,9 @@ func extractLinesWithVariables(filePath string) ([]string, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if len(line) > 0 && !strings.HasPrefix(line, "#") && strings.Contains(line, "{{") || strings.Contains(line, "}}") {
+		// Expressions ({{ var }}) and statements ({% for x in var %}, {% if var %}) both use variables.
+		if len(line) > 0 && !strings.HasPrefix(line, "#") &&
+			(strings.Contains(line, "{{") || strings.Contains(line, "}}") || strings.Contains(line, "{%")) {
 			linesWithVariables = append(linesWithVariables, line)
 		}
 	}
