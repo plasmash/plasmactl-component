@@ -205,7 +205,7 @@ func AddToTimeline(list []TimelineItem, item TimelineItem) []TimelineItem {
 
 // SortTimeline sorts timeline items in slice.
 func SortTimeline(list []TimelineItem, order string) {
-	sort.Slice(list, func(i, j int) bool {
+	sort.SliceStable(list, func(i, j int) bool {
 		dateI := list[i].GetDate()
 		dateJ := list[j].GetDate()
 
@@ -222,8 +222,9 @@ func SortTimeline(list []TimelineItem, order string) {
 		case *TimelineVariablesItem:
 			switch list[j].(type) {
 			case *TimelineVariablesItem:
-				// Both are Variables, maintain current order
-				return false
+				// Both are Variables: break the tie on the version (commit) so the
+				// order, and therefore the propagated versions, are deterministic.
+				return list[i].GetVersion() < list[j].GetVersion()
 			case *TimelineComponentsItem:
 				// Variables come before Components if asc, after if desc
 				return order == SortAsc
@@ -237,8 +238,9 @@ func SortTimeline(list []TimelineItem, order string) {
 				// Components come after Variables if asc, before if desc
 				return order == SortDesc
 			case *TimelineComponentsItem:
-				// Both are Components, maintain current order
-				return false
+				// Both are Components: break the tie on the version (commit) so the
+				// order, and therefore the propagated versions, are deterministic.
+				return list[i].GetVersion() < list[j].GetVersion()
 			default:
 				// Components come before unknown types
 				return true

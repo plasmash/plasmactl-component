@@ -576,7 +576,69 @@ func (s *Sync) buildPropagationMap(buildInv *sync.Inventory, timeline []sync.Tim
 		}
 	}
 
+	s.closeOverDependents(buildInv, componentsMap, usedComponents, toSync, componentVersionMap)
+
 	return toSync, componentVersionMap, nil
+}
+
+// closeOverDependents makes every (transitive) dependent of a component whose version
+// changes change too. The timeline loop marks a component processed at its newest
+// event, so an older event reaching a dependency later skips the components between
+// it and the images being built: the dependency gets a new version, nothing above it
+// does, and the deploy never walks down to build it ("image not found").
+// A component only counts as changed when its propagated version differs from its
+// base version: updateComponents skips identical ones.
+func (s *Sync) closeOverDependents(buildInv *sync.Inventory, componentsMap *sync.OrderedMap[*sync.Component], usedComponents map[string]bool, toSync *sync.OrderedMap[*sync.Component], componentVersionMap map[string]string) {
+	isChanged := func(name string) bool {
+		version, ok := componentVersionMap[name]
+		if !ok {
+			return false
+		}
+		c, okC := componentsMap.Get(name)
+		if !okC {
+			return false
+		}
+		baseVersion, _, _, err := c.GetBaseVersion()
+		return err != nil || baseVersion != version
+	}
+
+	changed := make([]string, 0, len(componentVersionMap))
+	for c := range componentVersionMap {
+		if isChanged(c) {
+			changed = append(changed, c)
+		}
+	}
+	slices.Sort(changed)
+
+	for _, c := range changed {
+		version := componentVersionMap[c]
+
+		dependents := make([]string, 0)
+		for dep := range buildInv.GetRequiredByComponents(c, -1) {
+			dependents = append(dependents, dep)
+		}
+		slices.Sort(dependents)
+
+		for _, dep := range dependents {
+			if isChanged(dep) {
+				continue
+			}
+			if s.FilterByComponentUsage {
+				if _, ok := usedComponents[dep]; !ok {
+					continue
+				}
+			}
+
+			depComponent, ok := componentsMap.Get(dep)
+			if !ok || !sync.IsUpdatableKind(depComponent.GetKind()) {
+				continue
+			}
+
+			toSync.Set(dep, depComponent)
+			componentVersionMap[dep] = version
+			s.Log().Debug("dependent closure", "component", dep, "dependency", c, "version", version)
+		}
+	}
 }
 
 func (s *Sync) updateComponents(componentVersionMap map[string]string, toSync *sync.OrderedMap[*sync.Component]) error {
